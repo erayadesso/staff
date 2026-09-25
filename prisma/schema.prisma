@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String   @id @default(cuid())
+  email               String   @unique
+  name                String?
+  passwordHash        String
+  role                String   @default("VIEWER")
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  olusturduguTalepler Talep[]  @relation("TalepCreatedBy")
+}
+
+model Firma {
+  id          String     @id @default(cuid())
+  ad          String     @unique
+  createdAt   DateTime   @default(now())
+  logoUrl     String?
+  isBirimleri IsBirimi[]
+}
+
+model IsBirimi {
+  id       String  @id @default(cuid())
+  ad       String
+  firmaId  String
+  firma    Firma   @relation(fields: [firmaId], references: [id])
+  talepler Talep[]
+
+  @@unique([firmaId, ad])
+}
+
+model Talep {
+  id                String    @id @default(cuid())
+  talepNo           Int       @unique @default(autoincrement())
+  talepSahibi       String
+  adayTuru          String
+  adet              String?
+  notlar            String?
+  guncelNot         String?
+  durumAdi          String
+  olusturulmaTarihi DateTime  @default(now())
+  deadline          DateTime?
+  isBirimiId        String
+  olusturanId       String?
+  adessoSuresi      DateTime?
+  adaylar           Aday[]
+  isBirimi          IsBirimi  @relation(fields: [isBirimiId], references: [id])
+  olusturan         User?     @relation("TalepCreatedBy", fields: [olusturanId], references: [id])
+}
+
+model Aday {
+  id               String    @id @default(cuid())
+  talepId          String?
+  domain           String?
+  talepDetaylari   String?
+  adayAdi          String
+  source           String?
+  surecDurumAdi    String?
+  adayCost         String?
+  iseBaslamaTarihi DateTime?
+  createdAt        DateTime  @default(now())
+  firmaAd          String?
+  talep            Talep?    @relation(fields: [talepId], references: [id], onDelete: Cascade)
+}
+
+model TalepDurumu {
+  id   String @id @default(cuid())
+  ad   String @unique
+  sira Int    @default(0)
+}
+
+model SurecDurumu {
+  id   String @id @default(cuid())
+  ad   String @unique
+  sira Int    @default(0)
+}
