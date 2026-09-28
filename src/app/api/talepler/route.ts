@@ -64,20 +64,34 @@ export async function POST(request: NextRequest) {
     if (!Number.isNaN(d.getTime())) adessoSuresi = d;
   }
 
-  const talep = await prisma.talep.create({
-    data: {
-      talepSahibi,
-      adayTuru,
-      adet: body.adet?.trim() || null,
-      notlar: body.notlar?.trim() || null,
-      guncelNot: body.guncelNot?.trim() || null,
-      durumAdi: body.durumAdi?.trim() || "🆕 Yeni Talep",
-      deadline,
-      adessoSuresi,
-      isBirimiId: isBirimi.id,
-      olusturanId: user.id,
-    },
-  });
+  try {
+    const talep = await prisma.talep.create({
+      data: {
+        talepSahibi,
+        adayTuru,
+        adet: body.adet?.trim() || null,
+        notlar: body.notlar?.trim() || null,
+        guncelNot: body.guncelNot?.trim() || null,
+        durumAdi: body.durumAdi?.trim() || "🆕 Yeni Talep",
+        deadline,
+        adessoSuresi,
+        isBirimiId: isBirimi.id,
+        olusturanId: user.id,
+      },
+    });
 
-  return NextResponse.json({ ok: true, talep }, { status: 201 });
+    return NextResponse.json({ ok: true, talep }, { status: 201 });
+  } catch (err: any) {
+    console.error("Talep oluşturulurken hata:", err);
+    if (err?.code === "P2002") {
+      return NextResponse.json(
+        { error: "Bu talep zaten mevcut." },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Talep oluşturulamadı." },
+      { status: 500 }
+    );
+  }
 }
