@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSessionUser } from "@/lib/session";
 import LogoutButton from "@/components/LogoutButton";
+import { Toaster } from "sonner";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,7 @@ export default async function DashboardLayout({
       </header>
 
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-8">{children}</main>
+      <Toaster position="top-right" />
     </div>
   );
 }
