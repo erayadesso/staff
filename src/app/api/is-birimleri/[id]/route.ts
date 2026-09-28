@@ -4,6 +4,56 @@ import { getSessionUser } from "@/lib/session";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+export async function DELETE(request: NextRequest, ctx: Ctx) {
+  const user = await getSessionUser();
+  if (!user || user.role !== "ADMIN") {
+    return NextResponse.json({ error: "Yetkisiz işlem." }, { status: 401 });
+  }
+  const { id } = await ctx.params;
+
+  try {
+    const isBirimi = await prisma.isBirimi.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { talepler: true } },
+      },
+    });
+
+    if (!isBirimi) {
+      return NextResponse.json(
+        { error: "İş birimi bulunamadı." },
+        { status: 404 }
+      );
+    }
+
+    if (isBirimi._count.talepler > 0) {
+      return NextResponse.json(
+        { error: "Bu iş birimine bağlı talepler olduğu için silinemez." },
+        { status: 400 }
+      );
+    }
+
+    await prisma.isBirimi.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const prismaError = err as { code?: string };
+    if (prismaError.code === "P2025") {
+      return NextResponse.json(
+        { error: "İş birimi bulunamadı." },
+        { status: 404 }
+      );
+    }
+    console.error("İş birimi silme hatası:", err);
+    return NextResponse.json(
+      { error: "İş birimi silinemedi." },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(request: NextRequest, ctx: Ctx) {
   const user = await getSessionUser();
   if (!user || user.role !== "ADMIN") {

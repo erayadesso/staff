@@ -35,6 +35,8 @@ export default function FirmalarListesi({
   const [birimAdi, setBirimAdi] = useState("");
   const [logoDuzenlenenFirma, setLogoDuzenlenenFirma] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState("");
+  const [yeniBirimEklenenFirma, setYeniBirimEklenenFirma] = useState<string | null>(null);
+  const [yeniBirimAdi, setYeniBirimAdi] = useState("");
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const filtrelenen = firmalar
@@ -164,6 +166,55 @@ export default function FirmalarListesi({
       }
       setDuzenlenenBirim(null);
       setToasts((prev) => [...prev, { id: Date.now(), message: "İş birimi güncellendi.", type: "success" }]);
+      setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 4000);
+      router.refresh();
+    } catch {
+      setToasts((prev) => [...prev, { id: Date.now(), message: "Bir hata oluştu.", type: "error" }]);
+      setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 4000);
+    }
+  }
+
+  async function birimSil(birimId: string) {
+    const onay = confirm(
+      "Bu iş birimini silmek istediğinize emin misiniz?"
+    );
+    if (!onay) return;
+    try {
+      const res = await fetch(`/api/is-birimleri/${birimId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setToasts((prev) => [...prev, { id: Date.now(), message: d.error ?? "İş birimi silinemedi.", type: "error" }]);
+        setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 4000);
+        return;
+      }
+      setToasts((prev) => [...prev, { id: Date.now(), message: "İş birimi silindi.", type: "success" }]);
+      setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 4000);
+      router.refresh();
+    } catch {
+      setToasts((prev) => [...prev, { id: Date.now(), message: "Bir hata oluştu.", type: "error" }]);
+      setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 4000);
+    }
+  }
+
+  async function yeniBirimEkle(firmaId: string) {
+    if (!yeniBirimAdi.trim()) return;
+    try {
+      const res = await fetch(`/api/is-birimleri`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ad: yeniBirimAdi, firmaId }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        setToasts((prev) => [...prev, { id: Date.now(), message: d.error ?? "İş birimi eklenemedi.", type: "error" }]);
+        setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 4000);
+        return;
+      }
+      setYeniBirimEklenenFirma(null);
+      setYeniBirimAdi("");
+      setToasts((prev) => [...prev, { id: Date.now(), message: "İş birimi eklendi.", type: "success" }]);
       setTimeout(() => { setToasts((prev) => prev.slice(1)); }, 4000);
       router.refresh();
     } catch {
@@ -322,63 +373,117 @@ export default function FirmalarListesi({
             </div>
           )}
 
-          <ul className="mt-3 space-y-1">
-            {eslesenBirimler.length === 0 && (
-              <li className="text-sm text-zinc-500">İş birimi yok.</li>
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                İş Birimleri
+              </h3>
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    setYeniBirimEklenenFirma(yeniBirimEklenenFirma === f.id ? null : f.id);
+                    setYeniBirimAdi("");
+                  }}
+                  className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                >
+                  + İş Birimi Ekle
+                </button>
+              )}
+            </div>
+
+            {yeniBirimEklenenFirma === f.id && (
+              <div className="mb-3 flex items-center gap-2">
+                <input
+                  value={yeniBirimAdi}
+                  onChange={(e) => setYeniBirimAdi(e.target.value)}
+                  placeholder="İş birimi adı"
+                  className={inputClass}
+                  autoFocus
+                />
+                <button
+                  onClick={() => yeniBirimEkle(f.id)}
+                  className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                >
+                  Ekle
+                </button>
+                <button
+                  onClick={() => {
+                    setYeniBirimEklenenFirma(null);
+                    setYeniBirimAdi("");
+                  }}
+                  className="shrink-0 rounded-lg px-2 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800"
+                >
+                  Vazgeç
+                </button>
+              </div>
             )}
-            {eslesenBirimler.map((b) =>
-              duzenlenenBirim === b.id ? (
-                <li
-                  key={b.id}
-                  className="flex items-center gap-2 rounded-lg bg-zinc-50 p-1 text-sm dark:bg-zinc-900"
-                >
-                  <input
-                    value={birimAdi}
-                    onChange={(e) => setBirimAdi(e.target.value)}
-                    className={inputClass}
-                    autoFocus
-                  />
-                  <button
-                    onClick={() => birimGuncelle(b.id, birimAdi)}
-                    className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+
+            <ul className="space-y-1">
+              {eslesenBirimler.length === 0 && (
+                <li className="text-sm text-zinc-500">İş birimi yok.</li>
+              )}
+              {eslesenBirimler.map((b) =>
+                duzenlenenBirim === b.id ? (
+                  <li
+                    key={b.id}
+                    className="flex items-center gap-2 rounded-lg bg-zinc-50 p-1 text-sm dark:bg-zinc-900"
                   >
-                    Kaydet
-                  </button>
-                  <button
-                    onClick={() => setDuzenlenenBirim(null)}
-                    className="shrink-0 rounded-lg px-2 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800"
+                    <input
+                      value={birimAdi}
+                      onChange={(e) => setBirimAdi(e.target.value)}
+                      className={inputClass}
+                      autoFocus
+                    />
+                    <button
+                      onClick={() => birimGuncelle(b.id, birimAdi)}
+                      className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+                    >
+                      Kaydet
+                    </button>
+                    <button
+                      onClick={() => setDuzenlenenBirim(null)}
+                      className="shrink-0 rounded-lg px-2 py-1.5 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800"
+                    >
+                      Vazgeç
+                    </button>
+                  </li>
+                ) : (
+                  <li
+                    key={b.id}
+                    className="flex items-center justify-between rounded-lg bg-zinc-50 p-2 text-sm dark:bg-zinc-900"
                   >
-                    Vazgeç
-                  </button>
-                </li>
-              ) : (
-                <li
-                  key={b.id}
-                  className="flex items-center justify-between text-sm"
-                >
-                  <span className="text-zinc-700 dark:text-zinc-300">
-                    {b.ad}
-                  </span>
-                  <span className="flex items-center gap-3">
-                    <span className="text-xs text-zinc-400">
-                      {b._count.talepler} talep
+                    <span className="text-zinc-700 dark:text-zinc-300">
+                      {b.ad}
                     </span>
-                    {isAdmin && (
-                      <button
-                        onClick={() => {
-                          setDuzenlenenBirim(b.id);
-                          setBirimAdi(b.ad);
-                        }}
-                        className="shrink-0 rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800"
-                      >
-                        Düzenle
-                      </button>
-                    )}
-                  </span>
-                </li>
-              )
-            )}
-          </ul>
+                    <span className="flex items-center gap-3">
+                      <span className="text-xs text-zinc-400">
+                        {b._count.talepler} talep
+                      </span>
+                      {isAdmin && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setDuzenlenenBirim(b.id);
+                              setBirimAdi(b.ad);
+                            }}
+                            className="shrink-0 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40"
+                          >
+                            Düzenle
+                          </button>
+                          <button
+                            onClick={() => birimSil(b.id)}
+                            className="shrink-0 rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40"
+                          >
+                            Sil
+                          </button>
+                        </div>
+                      )}
+                    </span>
+                  </li>
+                )
+              )}
+            </ul>
+          </div>
         </div>
       ))}
     </div>
