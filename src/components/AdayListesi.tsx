@@ -226,8 +226,8 @@ export default function AdayListesi({
                       </span>
                     )}
                     {aday.iseBaslamaTarihi && (
-                      <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
-                        ✅ İşe Başladı
+                      <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                        İşe Başlama: {fmtDate(aday.iseBaslamaTarihi)}
                       </span>
                     )}
                   </div>

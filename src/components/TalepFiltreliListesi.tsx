@@ -15,7 +15,7 @@ interface Talep {
   firmaAd: string;
   firmaLogo: string | null;
   birimAd: string;
-  adaylar: { id: string; adayAdi: string; surecDurumAdi: string | null }[];
+  adaylar: { id: string; adayAdi: string; surecDurumAdi: string | null; iseBaslamaTarihi: Date | null }[];
   adaySayisi: number;
   olusturulmaTarihi: Date;
   deadline: Date | null;
@@ -312,7 +312,11 @@ export default function TalepFiltreliListesi({
                       {t.adaylar.map((a) => (
                         <span
                           key={a.id}
-                          className="inline-flex max-w-[140px] items-center gap-1 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                          className={`inline-flex max-w-[140px] items-center gap-1 rounded px-1.5 py-0.5 text-[10px] ${
+                            a.iseBaslamaTarihi
+                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
+                          }`}
                           title={`${a.adayAdi}${a.surecDurumAdi ? ` — ${a.surecDurumAdi}` : ""}`}
                         >
                           {a.adayAdi.split(" ")[0]}

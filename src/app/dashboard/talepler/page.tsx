@@ -23,7 +23,7 @@ export default async function TaleplerPage() {
           firma: { select: { ad: true, logoUrl: true } },
         },
       },
-      adaylar: { select: { id: true, adayAdi: true, surecDurumAdi: true } },
+      adaylar: { select: { id: true, adayAdi: true, surecDurumAdi: true, iseBaslamaTarihi: true } },
     },
     orderBy: { talepNo: "desc" },
   });
