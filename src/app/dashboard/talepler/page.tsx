@@ -17,7 +17,12 @@ export default async function TaleplerPage() {
 
   const talepler = await prisma.talep.findMany({
     include: {
-      isBirimi: { include: { firma: true } },
+      isBirimi: {
+        select: {
+          ad: true,
+          firma: { select: { ad: true, logoUrl: true } },
+        },
+      },
       adaylar: { select: { id: true, adayAdi: true, surecDurumAdi: true } },
     },
     orderBy: { talepNo: "desc" },
@@ -54,6 +59,7 @@ export default async function TaleplerPage() {
           adet: t.adet,
           durumAdi: t.durumAdi,
           firmaAd: t.isBirimi.firma.ad,
+          firmaLogo: t.isBirimi.firma.logoUrl,
           birimAd: t.isBirimi.ad,
           adaylar: t.adaylar,
           adaySayisi: t.adaylar.length,

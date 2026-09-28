@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import AdayStatuBadge from "@/components/AdayStatuBadge";
 
 interface Aday {
   id: string;
@@ -144,9 +145,7 @@ export default function AdayRow({
                 </span>
               )}
               {aday.surecDurumAdi && (
-                <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
-                  {aday.surecDurumAdi}
-                </span>
+                <AdayStatuBadge surecDurumAdi={aday.surecDurumAdi} />
               )}
               {aday.adayCost && (
                 <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">

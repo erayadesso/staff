@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { talepStatuAmblem } from "@/lib/domain";
 
 export default function TalepDurumu({
   talepId,
@@ -50,7 +51,7 @@ export default function TalepDurumu({
           >
             {talepDurumlari.map((d) => (
               <option key={d} value={d}>
-                {d}
+                {talepStatuAmblem(d)} {d}
               </option>
             ))}
           </select>

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import AdayBagla from "@/components/AdayBagla";
+import AdayStatuBadge from "@/components/AdayStatuBadge";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +12,20 @@ export default async function BaglantisizAdaylarPage() {
   const [baglantisizlar, talepler] = await Promise.all([
     prisma.aday.findMany({
       where: { talepId: null },
+      select: {
+        id: true,
+        adayAdi: true,
+        domain: true,
+        source: true,
+        surecDurumAdi: true,
+        firmaAd: true,
+      },
       orderBy: { firmaAd: "asc" },
     }),
     prisma.talep.findMany({
-      include: { isBirimi: { include: { firma: true } } },
+      include: {
+        isBirimi: { select: { firma: { select: { ad: true } } } },
+      },
       orderBy: { talepNo: "asc" },
     }),
   ]);
@@ -72,9 +83,7 @@ export default async function BaglantisizAdaylarPage() {
                     </span>
                   )}
                   {a.surecDurumAdi && (
-                    <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
-                      {a.surecDurumAdi}
-                    </span>
+                    <AdayStatuBadge surecDurumAdi={a.surecDurumAdi} />
                   )}
                 </div>
                 <AdayBagla

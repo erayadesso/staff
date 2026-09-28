@@ -61,6 +61,99 @@ export function isAcikTalep(durumAdi: string): boolean {
   return !isKapaliDurum(durumAdi);
 }
 
+/**
+ * Talep statüsüne göre duygu/durum temelli renk kodlaması.
+ * Renk dili: pozitif ilerleme yeşile, bekleyen dış değerlendirmeler menevişe,
+ * iç süreç maviye, duraklatılan amber'e, kapandıysa gri nüansa çeker.
+ * Bu, listelerde kullanılan badge/sınıfların tek kaynağıdır.
+ */
+export type TalepStatuTon =
+  | "yeni"      // Talep Alındı
+  | "ic"        // Aday Taraması / İç Değerlendirme
+  | "dis"       // Müşteri Değerlendirmesi
+  | "gorsme"    // Görüşme
+  | "secim"     // Seçim & Planlama
+  | "kabul"     // İşe Giriş / Başlangıca Hazır
+  | "karsilandi"// Talep Karşılandı
+  | "bekliyor"  // Beklemeye Alındı
+  | "kapandi"   // İptal / Karşılanamadan Kapatıldı
+  | "varsayilan";
+
+/** Statü adından tonu belirler. Bilinmeyen statüler varsayılan tonda gelir. */
+export function talepStatuTon(durumAdi: string): TalepStatuTon {
+  switch (durumAdi) {
+    case "Talep Alındı":
+      return "yeni";
+    case "Aday Taraması Yapılıyor":
+    case "İç Değerlendirmede":
+      return "ic";
+    case "Müşteri Değerlendirmesinde":
+      return "dis";
+    case "Görüşme Aşamasında":
+      return "gorsme";
+    case "Seçim ve Başlangıç Planlaması":
+      return "secim";
+    case "İşe Giriş Sürecinde":
+    case "Başlangıca Hazır":
+      return "kabul";
+    case "Talep Karşılandı":
+      return "karsilandi";
+    case "Beklemeye Alındı":
+      return "bekliyor";
+    case "İptal Edildi":
+    case "Karşılanamadan Kapatıldı":
+      return "kapandi";
+    default:
+      return "varsayilan";
+  }
+}
+
+/** Tonun light/dark uyumlu badge sınıflarını döndürür. */
+export function talepStatuRenk(durumAdi: string): string {
+  switch (talepStatuTon(durumAdi)) {
+    case "yeni":
+      return "bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:ring-blue-800";
+    case "ic":
+      return "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:ring-sky-800";
+    case "dis":
+      return "bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:ring-violet-800";
+    case "gorsme":
+      return "bg-indigo-100 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:ring-indigo-800";
+    case "secim":
+      return "bg-teal-100 text-teal-700 ring-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:ring-teal-800";
+    case "kabul":
+      return "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-800";
+    case "karsilandi":
+      return "bg-emerald-600 text-white ring-emerald-600 dark:bg-emerald-500 dark:text-white dark:ring-emerald-500";
+    case "bekliyor":
+      return "bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-800";
+    case "kapandi":
+      return "bg-zinc-200 text-zinc-600 ring-zinc-300 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700";
+    default:
+      return "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700";
+  }
+}
+
+/** Duruma göre ekstra görsel ipucu (ikon/metin). */
+export function talepStatuAmblem(durumAdi: string): string {
+  switch (talepStatuTon(durumAdi)) {
+    case "karsilandi":
+      return "✓";
+    case "kabul":
+      return "👏";
+    case "gorsme":
+      return "🤝";
+    case "secim":
+      return "🎯";
+    case "bekliyor":
+      return "⏸";
+    case "kapandi":
+      return "•";
+    default:
+      return "";
+  }
+}
+
 /** Talep statü indeksi (ana akış sırası). Bulunamazsa -1. */
 export function talepStatuIndex(durumAdi: string): number {
   return (TALEP_STATULERI as readonly string[]).indexOf(durumAdi);
@@ -104,6 +197,108 @@ export const ADAY_CIKIS_STATULERI = new Set<string>([
   "Aday Süreçten Çekildi",
   "Aday Süreci Beklemede",
 ]);
+
+/* ------------------------------------------------------------------ */
+/* Aday Statü Renklendirme — talep statüleriyle aynı dil               */
+/* ------------------------------------------------------------------ */
+
+export type AdayStatuTon =
+  | "ic"        // Aday Belirlendi / İç Değerlendirme / Sunum Onayı
+  | "dis"       // Müşteriye sunuldu / müşteri değerlendirmesi
+  | "gorsme"    // Görüşme
+  | "secim"     // Aday seçildi
+  | "kabul"     // İşe giriş / başlangıca hazır
+  | "karsilandi"// İşe başladı
+  | "bekliyor"  // Aday süreci beklemede
+  | "kapandi"   // Uygun bulunmadı / çekildi
+  | "varsayilan";
+
+/** Aday statüsünden tonu belirler. Bilinmeyenler varsayılan tonda gelir. */
+export function adayStatuTon(surecDurumAdi: string | null | undefined): AdayStatuTon {
+  switch (surecDurumAdi) {
+    case "Aday Belirlendi":
+    case "İç Değerlendirmede":
+    case "Sunum İçin Onaylandı":
+      return "ic";
+    case "NoName CV Hazırlanıyor":
+    case "Müşteriye Sunuma Hazır":
+    case "Müşteriye İletildi":
+    case "Müşteri Değerlendirmesinde":
+      return "dis";
+    case "Görüşme Talep Edildi":
+    case "Görüşme Planlandı":
+    case "Görüşme Tamamlandı":
+    case "Müşteri Geri Bildirimi Bekleniyor":
+      return "gorsme";
+    case "Aday Seçildi":
+    case "Başlangıç Tarihi Netleştiriliyor":
+      return "secim";
+    case "İşe Giriş Evrakları Hazırlanıyor":
+    case "Evraklar Teslim Edildi":
+    case "Başlangıca Hazır":
+      return "kabul";
+    case "İşe Başladı":
+      return "karsilandi";
+    case "İç Değerlendirmede Uygun Bulunmadı":
+    case "Müşteri Tarafından Uygun Bulunmadı":
+    case "Aday Süreçten Çekildi":
+      return "kapandi";
+    case "Aday Süreci Beklemede":
+      return "bekliyor";
+    default:
+      return "varsayilan";
+  }
+}
+
+/** Aday statüsü tonunun light/dark uyumlu badge sınıflarını döndürür. */
+export function adayStatuRenk(surecDurumAdi: string | null | undefined): string {
+  switch (adayStatuTon(surecDurumAdi)) {
+    case "ic":
+      return "bg-sky-100 text-sky-700 ring-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:ring-sky-800";
+    case "dis":
+      return "bg-violet-100 text-violet-700 ring-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:ring-violet-800";
+    case "gorsme":
+      return "bg-indigo-100 text-indigo-700 ring-indigo-200 dark:bg-indigo-950/50 dark:text-indigo-300 dark:ring-indigo-800";
+    case "secim":
+      return "bg-teal-100 text-teal-700 ring-teal-200 dark:bg-teal-950/50 dark:text-teal-300 dark:ring-teal-800";
+    case "kabul":
+      return "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-800";
+    case "karsilandi":
+      return "bg-emerald-600 text-white ring-emerald-600 dark:bg-emerald-500 dark:text-white dark:ring-emerald-500";
+    case "bekliyor":
+      return "bg-amber-100 text-amber-800 ring-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:ring-amber-800";
+    case "kapandi":
+      return "bg-zinc-200 text-zinc-600 ring-zinc-300 dark:bg-zinc-800 dark:text-zinc-400 dark:ring-zinc-700";
+    default:
+      return "bg-zinc-100 text-zinc-700 ring-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700";
+  }
+}
+
+/** Aday statüsüne göre ekstra görsel ipucu (ikon). İşe başlayan için onay işareti. */
+export function adayStatuAmblem(surecDurumAdi: string | null | undefined): string {
+  switch (adayStatuTon(surecDurumAdi)) {
+    case "karsilandi":
+      return "✓";
+    case "bekliyor":
+      return "⏸";
+    default:
+      return "";
+  }
+}
+
+/**
+ * Aday statüsünün <select> öğesi için güvenli (açık tonlu) sınıflarını döndürür.
+ * Badge'deki dolgun/koyu (text-white) tonlar <select>'e uygulanınca açılır
+ * menüdeki seçenek metinleri görünmez olabildiğinden, burada her ton açık
+ * arka plan + koyu metin olarak döner.
+ */
+export function adayStatuRenkSelect(surecDurumAdi: string | null | undefined): string {
+  const ton = adayStatuTon(surecDurumAdi);
+  if (ton === "karsilandi") {
+    return "bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-800";
+  }
+  return adayStatuRenk(surecDurumAdi);
+}
 
 /* ------------------------------------------------------------------ */
 /* Otomatik Talep Statüsü — en ileri aktif adaya göre                 */

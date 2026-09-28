@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/session";
 import AdayListesi from "@/components/AdayListesi";
 import TalepDurumu from "@/components/TalepDurumu";
 import TalepSilButonu from "@/components/TalepSilButonu";
+import TalepStatuBadge from "@/components/TalepStatuBadge";
 import {
   deadlineGecti,
   isBasariKapatildi,
@@ -25,9 +26,27 @@ export default async function TalepDetayPage({
   const talep = await prisma.talep.findUnique({
     where: { id },
     include: {
-      isBirimi: { include: { firma: true } },
+      isBirimi: {
+        select: {
+          ad: true,
+          firma: { select: { ad: true } },
+        },
+      },
       olusturan: { select: { name: true, email: true } },
-      adaylar: { orderBy: { createdAt: "asc" } },
+      adaylar: {
+        select: {
+          id: true,
+          adayAdi: true,
+          source: true,
+          surecDurumAdi: true,
+          domain: true,
+          adayCost: true,
+          iseBaslamaTarihi: true,
+          talepDetaylari: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -88,13 +107,11 @@ export default async function TalepDetayPage({
             </div>
             <div className="flex items-center gap-2">
               {isBasariKapatildi(talep.adaylar, talep.adet) && (
-                <span className="inline-flex items-center gap-1 rounded bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:ring-emerald-800">
                   ✅ Başarıyla Kapandı
                 </span>
               )}
-              <span className="rounded bg-zinc-100 px-2 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                {talep.durumAdi}
-              </span>
+              <TalepStatuBadge durumAdi={talep.durumAdi} className="px-2 py-1 text-xs" />
               {user.role === "ADMIN" && (
                 <TalepSilButonu talepNo={talep.talepNo} talepId={talep.id} />
               )}

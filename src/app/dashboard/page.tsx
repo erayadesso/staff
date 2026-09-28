@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import ExcelIndirButton from "@/components/ExcelIndirButton";
+import TalepStatuBadge from "@/components/TalepStatuBadge";
 import {
   deadlineGecti,
   isKapaliDurum,
@@ -24,8 +25,16 @@ export default async function DashboardPage() {
   const [talepler, firmalar] = await Promise.all([
     prisma.talep.findMany({
       include: {
-        isBirimi: { include: { firma: true } },
-        adaylar: true,
+        isBirimi: {
+          select: {
+            ad: true,
+            firmaId: true,
+            firma: { select: { ad: true } },
+          },
+        },
+        adaylar: {
+          select: { id: true, adayAdi: true, surecDurumAdi: true },
+        },
         olusturan: { select: { name: true } },
       },
       orderBy: { talepNo: "asc" },
@@ -86,12 +95,6 @@ export default async function DashboardPage() {
   function getProgressBar(pct: number) {
     const renk = pct >= 100 ? "bg-emerald-500" : pct >= 50 ? "bg-blue-500" : pct >= 25 ? "bg-amber-500" : "bg-zinc-500";
     return { pct, renk };
-  }
-
-  function getDurumRenk(durumAdi: string, basariylaKapandi: boolean, deadlineGectiMi: boolean) {
-    if (basariylaKapandi) return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
-    if (deadlineGectiMi) return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300";
-    return "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300";
   }
 
   return (
@@ -315,13 +318,15 @@ export default async function DashboardPage() {
                         <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
                           #{t.talepNo}
                         </span>
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${getDurumRenk(
-                          t.durumAdi,
-                          false,
-                          deadlineGecti(t.durumAdi, t.deadline)
-                        )}`}>
-                          {t.durumAdi}
-                        </span>
+                        <TalepStatuBadge durumAdi={t.durumAdi} />
+                        {deadlineGecti(t.durumAdi, t.deadline) && (
+                          <span
+                            className="inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-800"
+                            title="Müşteri son geçerlilik tarihi geçti"
+                          >
+                            ⚠ geçti
+                          </span>
+                        )}
                       </div>
                       <h3 className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                         {t.adayTuru}

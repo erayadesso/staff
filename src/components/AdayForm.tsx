@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { adayStatuRenkSelect } from "@/lib/domain";
 
 export default function AdayForm({
   talepId,
@@ -115,7 +116,7 @@ export default function AdayForm({
           <select
             value={surecDurumAdi}
             onChange={(e) => setSurecDurumAdi(e.target.value)}
-            className={inputClass}
+            className={`${inputClass} ${surecDurumAdi ? adayStatuRenkSelect(surecDurumAdi) : ""}`}
           >
             <option value="">Seçiniz</option>
             {surecDurumlari.map((d) => (

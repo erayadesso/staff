@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { adayStatuRenkSelect } from "@/lib/domain";
 
 interface Aday {
   id: string;
@@ -90,16 +91,6 @@ export default function AdayListesi({
       month: "2-digit",
       year: "numeric",
     });
-  }
-
-  function getStatusBadge(s: string | null): string {
-    if (!s) return "bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400";
-    const lower = s.toLowerCase();
-    if (/beğendi|onaylan|kabul|teklif/i.test(lower))
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
-    if (/reddet|uygun|yok/i.test(lower))
-      return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300";
-    return "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300";
   }
 
   async function handleStatusChange(id: string, yeniDurum: string) {
@@ -246,7 +237,7 @@ export default function AdayListesi({
                     value={aday.surecDurumAdi || ""}
                     onChange={(e) => handleStatusChange(aday.id, e.target.value)}
                     disabled={savingStatus === aday.id}
-                    className={`max-w-[200px] rounded-lg border bg-white px-2 py-1.5 text-xs outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 ${getStatusBadge(
+                    className={`max-w-[200px] rounded-lg border border-zinc-300 px-2 py-1.5 text-xs outline-none focus:border-zinc-500 dark:border-zinc-700 ${adayStatuRenkSelect(
                       aday.surecDurumAdi
                     )}`}
                   >
