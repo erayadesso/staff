@@ -306,11 +306,11 @@ export function adayStatuRenkSelect(surecDurumAdi: string | null | undefined): s
 
 /** Aday statüsünden belirlenmesi gereken talep statüsü haritası */
 const ADAYDAN_TALEPE: Record<string, string> = {
-  "Aday Belirlendi": "Aday Taraması Yapılıyor",
-  "İç Değerlendirmede": "Aday Taraması Yapılıyor",
-  "Sunum İçin Onaylandı": "Aday Taraması Yapılıyor",
-  "NoName CV Hazırlanıyor": "Müşteri Değerlendirmesinde",
-  "Müşteriye Sunuma Hazır": "Müşteri Değerlendirmesinde",
+  "Aday Belirlendi": "İç Değerlendirmede",
+  "İç Değerlendirmede": "İç Değerlendirmede",
+  "Sunum İçin Onaylandı": "İç Değerlendirmede",
+  "NoName CV Hazırlanıyor": "İç Değerlendirmede",
+  "Müşteriye Sunuma Hazır": "İç Değerlendirmede",
   "Müşteriye İletildi": "Müşteri Değerlendirmesinde",
   "Müşteri Değerlendirmesinde": "Müşteri Değerlendirmesinde",
   "Görüşme Talep Edildi": "Görüşme Aşamasında",
