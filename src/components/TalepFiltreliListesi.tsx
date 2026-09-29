@@ -33,6 +33,8 @@ export default function TalepFiltreliListesi({
   const [seciliDurumlar, setSeciliDurumlar] = useState<string[]>([]);
   const [arama, setArama] = useState("");
   const [gorunum, setGorunum] = useState<"kart" | "tablo">("kart");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc" | null>(null);
 
   function fmtDate(d: Date | null) {
     if (!d) return "—";
@@ -101,6 +103,77 @@ export default function TalepFiltreliListesi({
     const renk = pct === 100 ? "bg-emerald-500" : pct >= 50 ? "bg-blue-500" : "bg-amber-500";
     return { pct, renk };
   }
+
+  function handleSort(column: string) {
+    if (sortColumn === column) {
+      if (sortDirection === "asc") {
+        setSortDirection("desc");
+      } else if (sortDirection === "desc") {
+        setSortColumn(null);
+        setSortDirection(null);
+      }
+    } else {
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  }
+
+  function getSortIndicator(column: string) {
+    if (sortColumn !== column) return null;
+    return sortDirection === "asc" ? " ↑" : " ↓";
+  }
+
+  const siraliTalepler = useMemo(() => {
+    let sonuc = [...filtreli];
+    if (sortColumn && sortDirection) {
+      sonuc.sort((a, b) => {
+        let valA: string | number | Date;
+        let valB: string | number | Date;
+
+        switch (sortColumn) {
+          case "talepNo":
+            valA = a.talepNo;
+            valB = b.talepNo;
+            break;
+          case "firmaAd":
+            valA = a.firmaAd.toLowerCase();
+            valB = b.firmaAd.toLowerCase();
+            break;
+          case "talepSahibi":
+            valA = a.talepSahibi.toLowerCase();
+            valB = b.talepSahibi.toLowerCase();
+            break;
+          case "adayTuru":
+            valA = a.adayTuru.toLowerCase();
+            valB = b.adayTuru.toLowerCase();
+            break;
+          case "olusturulmaTarihi":
+            valA = a.olusturulmaTarihi.getTime();
+            valB = b.olusturulmaTarihi.getTime();
+            break;
+          case "yasi":
+            valA = a.yasi;
+            valB = b.yasi;
+            break;
+          case "deadline":
+            valA = a.deadline?.getTime() || 0;
+            valB = b.deadline?.getTime() || 0;
+            break;
+          case "durumAdi":
+            valA = a.durumAdi.toLowerCase();
+            valB = b.durumAdi.toLowerCase();
+            break;
+          default:
+            return 0;
+        }
+
+        if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+        if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+    return sonuc;
+  }, [filtreli, sortColumn, sortDirection]);
 
   return (
     <div className="space-y-6">
@@ -343,19 +416,59 @@ export default function TalepFiltreliListesi({
           <table className="w-full min-w-[800px] text-left text-sm">
             <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
               <tr className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                <th className="px-4 py-3 font-medium">No</th>
-                <th className="px-4 py-3 font-medium">Firma / Birim</th>
-                <th className="px-4 py-3 font-medium">Talep Sahibi</th>
-                <th className="px-4 py-3 font-medium">Aday Türü</th>
-                <th className="px-4 py-3 font-medium">Oluşturulma</th>
+                <th
+                  onClick={() => handleSort("talepNo")}
+                  className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
+                >
+                  No{getSortIndicator("talepNo")}
+                </th>
+                <th
+                  onClick={() => handleSort("firmaAd")}
+                  className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
+                >
+                  Firma / Birim{getSortIndicator("firmaAd")}
+                </th>
+                <th
+                  onClick={() => handleSort("talepSahibi")}
+                  className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
+                >
+                  Talep Sahibi{getSortIndicator("talepSahibi")}
+                </th>
+                <th
+                  onClick={() => handleSort("adayTuru")}
+                  className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
+                >
+                  Aday Türü{getSortIndicator("adayTuru")}
+                </th>
+                <th
+                  onClick={() => handleSort("olusturulmaTarihi")}
+                  className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
+                >
+                  Oluşturulma{getSortIndicator("olusturulmaTarihi")}
+                </th>
                 <th className="px-4 py-3 font-medium">İlerleme</th>
-                <th className="px-4 py-3 font-medium">Yaş</th>
-                <th className="px-4 py-3 font-medium">Deadline</th>
-                <th className="px-4 py-3 font-medium">Durum</th>
+                <th
+                  onClick={() => handleSort("yasi")}
+                  className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
+                >
+                  Yaş{getSortIndicator("yasi")}
+                </th>
+                <th
+                  onClick={() => handleSort("deadline")}
+                  className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
+                >
+                  Deadline{getSortIndicator("deadline")}
+                </th>
+                <th
+                  onClick={() => handleSort("durumAdi")}
+                  className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
+                >
+                  Durum{getSortIndicator("durumAdi")}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-              {filtreli.map((t) => {
+              {siraliTalepler.map((t) => {
                 const prog = getProgressBar(t.adaySayisi, t.adet);
                 return (
                   <tr
@@ -433,7 +546,7 @@ export default function TalepFiltreliListesi({
                   </tr>
                 );
               })}
-              {filtreli.length === 0 && (
+              {siraliTalepler.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">
                     Filtreye uyan talep bulunamadı.
