@@ -327,7 +327,7 @@ export default function TalepFiltreliListesi({
             </div>
           )}
 
-        {durumlar.length > 0 && (
+          {durumlar.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               onClick={() => setSeciliDurumlar([])}
@@ -642,4 +642,5 @@ export default function TalepFiltreliListesi({
       )}
     </div>
   );
+}
 }
