@@ -267,24 +267,13 @@ export default function TalepFiltreliListesi({
                     <button
                       key={firmaAdi}
                       onClick={() => toggleFirma(firmaAdi)}
-                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset transition ${
+                      className={`rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset transition ${
                         secili
                           ? "bg-blue-600 text-white ring-blue-600"
                           : "bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 hover:ring-zinc-300 dark:bg-zinc-950 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:bg-zinc-900 dark:hover:ring-zinc-600"
                       }`}
                     >
-                      {talepler.find((t) => t.firmaAd === firmaAdi)?.firmaLogo ? (
-                        <img
-                          src={talepler.find((t) => t.firmaAd === firmaAdi)!.firmaLogo!}
-                          alt={firmaAdi}
-                          className="h-4 w-4 rounded object-contain"
-                        />
-                      ) : (
-                        <span className="flex h-4 w-4 items-center justify-center rounded bg-zinc-200 text-[8px] font-bold text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
-                          {firmaAdi.charAt(0)}
-                        </span>
-                      )}
-                      <span>{firmaAdi}</span>
+                      {firmaAdi}
                       <span className={`ml-0.5 text-[10px] ${secili ? "text-blue-100" : "text-zinc-400 dark:text-zinc-500"}`}>
                         {talepSayisi}
                       </span>
@@ -371,6 +360,7 @@ export default function TalepFiltreliListesi({
             })}
           </div>
         )}
+      </div>
       </div>
 
       {/* Kart Görünümü */}
