@@ -29,7 +29,7 @@ export default function TalepFiltreliListesi({
 }: {
   talepler: Talep[];
 }) {
-  const [firma, setFirma] = useState("");
+  const [seciliFirmalar, setSeciliFirmalar] = useState<string[]>([]);
   const [seciliDurumlar, setSeciliDurumlar] = useState<string[]>([]);
   const [arama, setArama] = useState("");
   const [gorunum, setGorunum] = useState<"kart" | "tablo">("kart");
@@ -57,6 +57,19 @@ export default function TalepFiltreliListesi({
     () => Array.from(new Set(talepler.map((t) => t.firmaAd))).sort(),
     [talepler]
   );
+
+  function toggleFirma(firmaAdi: string) {
+    setSeciliFirmalar((prev) =>
+      prev.includes(firmaAdi)
+        ? prev.filter((f) => f !== firmaAdi)
+        : [...prev, firmaAdi]
+    );
+  }
+
+  function clearFirmalar() {
+    setSeciliFirmalar([]);
+  }
+
   // Durum adı -> sayı haritasını tek geçişte hesapla (badge adedi ve filtre için)
   const durumSayilari = useMemo(() => {
     const map = new Map<string, number>();
@@ -74,7 +87,7 @@ export default function TalepFiltreliListesi({
   const filtreli = useMemo(() => {
     const q = arama.trim().toLowerCase();
     return talepler.filter((t) => {
-      if (firma && t.firmaAd !== firma) return false;
+      if (seciliFirmalar.length > 0 && !seciliFirmalar.includes(t.firmaAd)) return false;
       if (seciliDurumlar.length > 0 && !seciliDurumlar.includes(t.durumAdi))
         return false;
       if (
@@ -88,13 +101,11 @@ export default function TalepFiltreliListesi({
         return false;
       return true;
     });
-  }, [talepler, firma, seciliDurumlar, arama]);
+  }, [talepler, seciliFirmalar, seciliDurumlar, arama]);
 
   const toplamAday = filtreli.reduce((s, t) => s + t.adaySayisi, 0);
   const aktifTalep = filtreli.filter((t) => !t.basariylaKapandi).length;
 
-  const selectClass =
-    "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
 
   function getProgressBar(adaySayisi: number, adet: string | null) {
     const hedef = parseInt(adet || "0", 10);
@@ -201,48 +212,120 @@ export default function TalepFiltreliListesi({
 
       {/* Filtre Bar */}
       <div className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[200px]">
-            <input
-              value={arama}
-              onChange={(e) => setArama(e.target.value)}
-              placeholder="Ara (rol, sahip, birim)..."
-              className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2 pr-10 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-            />
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[200px]">
+              <input
+                value={arama}
+                onChange={(e) => setArama(e.target.value)}
+                placeholder="Ara (rol, sahip, birim)..."
+                className="w-full rounded-lg border border-zinc-300 bg-zinc-50 px-4 py-2 pr-10 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+              />
+            </div>
+            <div className="flex rounded-lg border border-zinc-300 dark:border-zinc-700 overflow-hidden">
+              <button
+                onClick={() => setGorunum("kart")}
+                className={`px-3 py-2 text-xs font-medium transition ${
+                  gorunum === "kart"
+                    ? "bg-blue-600 text-white"
+                    : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                }`}
+              >
+                Kart
+              </button>
+              <button
+                onClick={() => setGorunum("tablo")}
+                className={`px-3 py-2 text-xs font-medium border-l border-zinc-300 dark:border-zinc-700 transition ${
+                  gorunum === "tablo"
+                    ? "bg-blue-600 text-white"
+                    : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                }`}
+              >
+                Tablo
+              </button>
+            </div>
           </div>
-          <select
-            value={firma}
-            onChange={(e) => setFirma(e.target.value)}
-            className={selectClass}
-          >
-            <option value="">Tüm Firmalar</option>
-            {firmalar.map((f) => (
-              <option key={f} value={f}>{f}</option>
-            ))}
-          </select>
-          <div className="flex rounded-lg border border-zinc-300 dark:border-zinc-700 overflow-hidden">
-            <button
-              onClick={() => setGorunum("kart")}
-              className={`px-3 py-2 text-xs font-medium transition ${
-                gorunum === "kart"
-                  ? "bg-blue-600 text-white"
-                  : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              }`}
-            >
-              Kart
-            </button>
-            <button
-              onClick={() => setGorunum("tablo")}
-              className={`px-3 py-2 text-xs font-medium border-l border-zinc-300 dark:border-zinc-700 transition ${
-                gorunum === "tablo"
-                  ? "bg-blue-600 text-white"
-                  : "bg-zinc-50 text-zinc-600 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-800"
-              }`}
-            >
-              Tablo
-            </button>
-          </div>
-        </div>
+
+          {firmalar.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">Firma</span>
+                {seciliFirmalar.length > 0 && (
+                  <button
+                    onClick={clearFirmalar}
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium"
+                  >
+                    Temizle
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {firmalar.map((firmaAdi) => {
+                  const secili = seciliFirmalar.includes(firmaAdi);
+                  const talepSayisi = talepler.filter((t) => t.firmaAd === firmaAdi).length;
+                  return (
+                    <button
+                      key={firmaAdi}
+                      onClick={() => toggleFirma(firmaAdi)}
+                      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium ring-1 ring-inset transition ${
+                        secili
+                          ? "bg-blue-600 text-white ring-blue-600"
+                          : "bg-white text-zinc-600 ring-zinc-200 hover:bg-zinc-50 hover:ring-zinc-300 dark:bg-zinc-950 dark:text-zinc-400 dark:ring-zinc-700 dark:hover:bg-zinc-900 dark:hover:ring-zinc-600"
+                      }`}
+                    >
+                      {talepler.find((t) => t.firmaAd === firmaAdi)?.firmaLogo ? (
+                        <img
+                          src={talepler.find((t) => t.firmaAd === firmaAdi)!.firmaLogo!}
+                          alt={firmaAdi}
+                          className="h-4 w-4 rounded object-contain"
+                        />
+                      ) : (
+                        <span className="flex h-4 w-4 items-center justify-center rounded bg-zinc-200 text-[8px] font-bold text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400">
+                          {firmaAdi.charAt(0)}
+                        </span>
+                      )}
+                      <span>{firmaAdi}</span>
+                      <span className={`ml-0.5 text-[10px] ${secili ? "text-blue-100" : "text-zinc-400 dark:text-zinc-500"}`}>
+                        {talepSayisi}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {seciliFirmalar.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {seciliFirmalar.map((firmaAdi) => {
+                const firmaTalepleri = talepler.filter((t) => t.firmaAd === firmaAdi);
+                const logo = firmaTalepleri.find((t) => t.firmaLogo)?.firmaLogo;
+                return (
+                  <span
+                    key={firmaAdi}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:ring-blue-800"
+                  >
+                    {logo ? (
+                      <img src={logo} alt={firmaAdi} className="h-3.5 w-3.5 rounded object-contain" />
+                    ) : (
+                      <span className="flex h-3.5 w-3.5 items-center justify-center rounded bg-blue-200 text-[7px] font-bold text-blue-700 dark:bg-blue-800 dark:text-blue-200">
+                        {firmaAdi.charAt(0)}
+                      </span>
+                    )}
+                    {firmaAdi}
+                    <button
+                      onClick={() => toggleFirma(firmaAdi)}
+                      className="ml-0.5 rounded-full p-0.5 hover:bg-blue-100 dark:hover:bg-blue-900"
+                    >
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
 
         {durumlar.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
