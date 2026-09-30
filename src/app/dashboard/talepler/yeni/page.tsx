@@ -14,6 +14,17 @@ export default async function YeniTalepPage() {
     orderBy: [{ firma: { ad: "asc" } }, { ad: "asc" }],
   });
 
+  const yeniDurum =
+    (await prisma.talepDurumu.findFirst({
+      where: { ton: "yeni" },
+      orderBy: { sira: "asc" },
+      select: { id: true, ad: true, sira: true, ton: true },
+    })) ??
+    (await prisma.talepDurumu.findFirst({
+      orderBy: { sira: "asc" },
+      select: { id: true, ad: true, sira: true, ton: true },
+    }));
+
   return (
     <div className="space-y-6">
       <div>
@@ -34,6 +45,7 @@ export default async function YeniTalepPage() {
           ad: b.ad,
           firmaAd: b.firma.ad,
         }))}
+        yeniDurum={yeniDurum}
       />
     </div>
   );

@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AdayStatuBadge from "@/components/AdayStatuBadge";
+import type { StatuNesne } from "@/lib/domain";
 
 interface Aday {
   id: string;
   adayAdi: string;
   source: string | null;
-  surecDurumAdi: string | null;
+  surecDurum: StatuNesne | null;
   domain: string | null;
   adayCost: string | null;
   iseBaslamaTarihi: Date | null;
@@ -27,12 +28,12 @@ export default function AdayRow({
   surecDurumlari,
 }: {
   aday: Aday;
-  surecDurumlari: string[];
+  surecDurumlari: StatuNesne[];
 }) {
   const router = useRouter();
   const [editMode, setEditMode] = useState(false);
   const [adayAdi, setAdayAdi] = useState(aday.adayAdi);
-  const [surecDurumAdi, setSurecDurumAdi] = useState(aday.surecDurumAdi ?? "");
+  const [surecDurumId, setSurecDurumId] = useState(aday.surecDurum?.id ?? "");
   const [source, setSource] = useState(aday.source ?? "");
   const [currency, setCurrency] = useState("₺");
   const [rawCost, setRawCost] = useState("");
@@ -48,6 +49,7 @@ export default function AdayRow({
     initialCost
   );
   const initialName = aday.adayAdi;
+  const initialDurumId = aday.surecDurum?.id ?? "";
 
   function formatPriceInput(value: string): string {
     const nums = value.replace(/[^0-9.,]/g, "");
@@ -69,7 +71,7 @@ export default function AdayRow({
 
   function openEdit() {
     setAdayAdi(aday.adayAdi);
-    setSurecDurumAdi(aday.surecDurumAdi ?? "");
+    setSurecDurumId(aday.surecDurum?.id ?? "");
     setSource(aday.source ?? "");
     setCurrency(initialCurrency);
     setRawCost(initialAmount);
@@ -90,7 +92,7 @@ export default function AdayRow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           adayAdi,
-          surecDurumAdi,
+          surecDurumId,
           source,
           adayCost: fullCost,
           iseBaslamaTarihi: iseBaslamaTarihi || null,
@@ -107,7 +109,7 @@ export default function AdayRow({
 
   function handleCancel() {
     setAdayAdi(initialName);
-    setSurecDurumAdi(aday.surecDurumAdi ?? "");
+    setSurecDurumId(initialDurumId);
     setSource(aday.source ?? "");
     setCurrency(initialCurrency);
     setRawCost(initialAmount);
@@ -144,8 +146,8 @@ export default function AdayRow({
                   {aday.source}
                 </span>
               )}
-              {aday.surecDurumAdi && (
-                <AdayStatuBadge surecDurumAdi={aday.surecDurumAdi} />
+              {aday.surecDurum && (
+                <AdayStatuBadge durum={aday.surecDurum} />
               )}
               {aday.adayCost && (
                 <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -220,14 +222,14 @@ export default function AdayRow({
                 Süreç Durumu
               </label>
               <select
-                value={surecDurumAdi}
-                onChange={(e) => setSurecDurumAdi(e.target.value)}
+                value={surecDurumId}
+                onChange={(e) => setSurecDurumId(e.target.value)}
                 className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
               >
                 <option value="">Seçiniz</option>
                 {surecDurumlari.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
+                  <option key={d.id} value={d.id ?? ""}>
+                    {d.ad}
                   </option>
                 ))}
               </select>

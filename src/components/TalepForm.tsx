@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import type { StatuNesne } from "@/lib/domain";
 
 interface Birim {
   id: string;
@@ -9,7 +10,13 @@ interface Birim {
   firmaAd: string;
 }
 
-export default function TalepForm({ birimler }: { birimler: Birim[] }) {
+export default function TalepForm({
+  birimler,
+  yeniDurum,
+}: {
+  birimler: Birim[];
+  yeniDurum: StatuNesne | null;
+}) {
   const router = useRouter();
   const firmalar = Array.from(new Set(birimler.map((b) => b.firmaAd)));
 
@@ -24,8 +31,6 @@ export default function TalepForm({ birimler }: { birimler: Birim[] }) {
   const [adessoSuresi, setAdessoSuresi] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const DURUM_YENI_TALEP = "🆕 Yeni Talep";
 
   const seciliFirmaBirimleri = birimler.filter((b) => b.firmaAd === firma);
 
@@ -51,7 +56,7 @@ export default function TalepForm({ birimler }: { birimler: Birim[] }) {
           adet,
           notlar,
           guncelNot,
-          durumAdi: DURUM_YENI_TALEP,
+          durumId: yeniDurum?.id || null,
           deadline: deadline || null,
           adessoSuresi: adessoSuresi || null,
           isBirimiId,
@@ -184,7 +189,7 @@ export default function TalepForm({ birimler }: { birimler: Birim[] }) {
       <div className="rounded-lg bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
         Durum:{" "}
         <span className="inline-flex rounded bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-          {DURUM_YENI_TALEP}
+          {yeniDurum?.ad || "—"}
         </span>{" "}
         (yeni talepler bu statüyle açılır)
       </div>

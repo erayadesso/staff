@@ -2,20 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { adayStatuRenkSelect } from "@/lib/domain";
+import { adayStatuRenkSelect, type StatuNesne } from "@/lib/domain";
 
 export default function AdayForm({
   talepId,
   surecDurumlari,
 }: {
   talepId: string;
-  surecDurumlari: string[];
+  surecDurumlari: StatuNesne[];
 }) {
   const router = useRouter();
   const [adayAdi, setAdayAdi] = useState("");
   const [domain, setDomain] = useState("");
   const [source, setSource] = useState("");
-  const [surecDurumAdi, setSurecDurumAdi] = useState("");
+  const [surecDurumId, setSurecDurumId] = useState("");
   const [adayCost, setAdayCost] = useState("");
   const [currency, setCurrency] = useState("₺");
   const [talepDetaylari, setTalepDetaylari] = useState("");
@@ -38,7 +38,7 @@ export default function AdayForm({
           adayAdi,
           domain,
           source,
-          surecDurumAdi,
+          surecDurumId,
           adayCost: fullCost,
           talepDetaylari,
           iseBaslamaTarihi: iseBaslamaTarihi || null,
@@ -52,7 +52,7 @@ export default function AdayForm({
       setAdayAdi("");
       setDomain("");
       setSource("");
-      setSurecDurumAdi("");
+      setSurecDurumId("");
       setAdayCost("");
       setCurrency("₺");
       setTalepDetaylari("");
@@ -77,6 +77,8 @@ export default function AdayForm({
   const inputClass =
     "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";
   const labelClass = "mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400";
+
+  const seciliSurec = surecDurumlari.find((d) => d.id === surecDurumId);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -114,14 +116,14 @@ export default function AdayForm({
         <div>
           <label className={labelClass}>Süreç Durumu</label>
           <select
-            value={surecDurumAdi}
-            onChange={(e) => setSurecDurumAdi(e.target.value)}
-            className={`${inputClass} ${surecDurumAdi ? adayStatuRenkSelect(surecDurumAdi) : ""}`}
+            value={surecDurumId}
+            onChange={(e) => setSurecDurumId(e.target.value)}
+            className={`${inputClass} ${seciliSurec ? adayStatuRenkSelect(seciliSurec) : ""}`}
           >
             <option value="">Seçiniz</option>
             {surecDurumlari.map((d) => (
-              <option key={d} value={d}>
-                {d}
+              <option key={d.id} value={d.id ?? ""}>
+                {d.ad}
               </option>
             ))}
           </select>

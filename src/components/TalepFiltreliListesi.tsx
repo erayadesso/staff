@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import TalepStatuBadge from "@/components/TalepStatuBadge";
-import { talepStatuRenk } from "@/lib/domain";
+import { talepStatuAmblem, talepStatuRenk, type StatuNesne } from "@/lib/domain";
 
 interface Talep {
   id: string;
@@ -11,11 +11,11 @@ interface Talep {
   talepSahibi: string;
   adayTuru: string;
   adet: string | null;
-  durumAdi: string;
+  durum: StatuNesne | null;
   firmaAd: string;
   firmaLogo: string | null;
   birimAd: string;
-  adaylar: { id: string; adayAdi: string; surecDurumAdi: string | null; iseBaslamaTarihi: Date | null }[];
+  adaylar: { id: string; adayAdi: string; surecDurum: StatuNesne | null; iseBaslamaTarihi: Date | null }[];
   adaySayisi: number;
   olusturulmaTarihi: Date;
   deadline: Date | null;
@@ -70,25 +70,32 @@ export default function TalepFiltreliListesi({
     setSeciliFirmalar([]);
   }
 
-  // Durum adı -> sayı haritasını tek geçişte hesapla (badge adedi ve filtre için)
+  // Durum -> sayı haritasını tek geçişte hesapla (badge adedi ve filtre için)
   const durumSayilari = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of talepler) {
-      map.set(t.durumAdi, (map.get(t.durumAdi) ?? 0) + 1);
+      const id = t.durum?.id ?? "";
+      map.set(id, (map.get(id) ?? 0) + 1);
     }
     return map;
   }, [talepler]);
 
-  const durumlar = useMemo(
-    () => Array.from(durumSayilari.keys()).sort(),
-    [durumSayilari]
-  );
+  // Liste görünümünde kullanılan benzersiz durum nesneleri (id/ad/ton)
+  const durumlar = useMemo(() => {
+    const seen = new Map<string, StatuNesne>();
+    for (const t of talepler) {
+      if (t.durum?.id) seen.set(t.durum.id, t.durum);
+    }
+    return Array.from(seen.values()).sort((a, b) =>
+      (a.ad ?? "").localeCompare(b.ad ?? "")
+    );
+  }, [talepler]);
 
   const filtreli = useMemo(() => {
     const q = arama.trim().toLowerCase();
     return talepler.filter((t) => {
       if (seciliFirmalar.length > 0 && !seciliFirmalar.includes(t.firmaAd)) return false;
-      if (seciliDurumlar.length > 0 && !seciliDurumlar.includes(t.durumAdi))
+      if (seciliDurumlar.length > 0 && !(t.durum?.id && seciliDurumlar.includes(t.durum.id)))
         return false;
       if (
         q &&
@@ -171,8 +178,8 @@ export default function TalepFiltreliListesi({
             valB = b.deadline?.getTime() || 0;
             break;
           case "durumAdi":
-            valA = a.durumAdi.toLowerCase();
-            valB = b.durumAdi.toLowerCase();
+            valA = a.durum?.ad?.toLowerCase() ?? "";
+            valB = b.durum?.ad?.toLowerCase() ?? "";
             break;
           default:
             return 0;
@@ -329,19 +336,20 @@ export default function TalepFiltreliListesi({
               Tümü
             </button>
             {durumlar.map((d) => {
-              const secili = seciliDurumlar.includes(d);
+              const secili = seciliDurumlar.includes(d.id ?? "");
               const renk = talepStatuRenk(d);
-              const amblem = d === "Talep Karşılandı" ? "✓" : "";
+              const amblem = talepStatuAmblem(d);
               return (
                 <button
-                  key={d}
-                  onClick={() =>
+                  key={d.id}
+                  onClick={() => {
+                    const id = d.id as string;
                     setSeciliDurumlar((prev) =>
                       secili
-                        ? prev.filter((x) => x !== d)
-                        : [...prev, d]
-                    )
-                  }
+                        ? prev.filter((x) => x !== id)
+                        : [...prev, id]
+                    );
+                  }}
                   title="Filtrelemek için tıklayın"
                   className={`rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset transition ${
                     secili
@@ -351,9 +359,9 @@ export default function TalepFiltreliListesi({
                 >
                   {amblem && <span aria-hidden>{amblem}</span>}
                   {amblem && " "}
-                  {d || "—"}
+                  {d.ad || "—"}
                   <span className="ml-1 opacity-70">
-                    {durumSayilari.get(d)}
+                    {durumSayilari.get(d.id ?? "")}
                   </span>
                 </button>
               );
@@ -380,7 +388,7 @@ export default function TalepFiltreliListesi({
                       <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
                         #{t.talepNo}
                       </span>
-                      <TalepStatuBadge durumAdi={t.durumAdi} />
+                      <TalepStatuBadge durum={t.durum} />
                       {t.deadlineGectiMi && (
                         <span
                           className="inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-800"
@@ -463,10 +471,10 @@ export default function TalepFiltreliListesi({
                               ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
                               : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                           }`}
-                          title={`${a.adayAdi}${a.surecDurumAdi ? ` — ${a.surecDurumAdi}` : ""}`}
+                          title={`${a.adayAdi}${a.surecDurum?.ad ? ` — ${a.surecDurum.ad}` : ""}`}
                         >
                           {a.adayAdi.split(" ")[0]}
-                          {a.surecDurumAdi && <span className="text-zinc-400">·</span>}
+                          {a.surecDurum?.ad && <span className="text-zinc-400">·</span>}
                         </span>
                       ))}
                     </div>
@@ -614,7 +622,7 @@ export default function TalepFiltreliListesi({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <TalepStatuBadge durumAdi={t.durumAdi} />
+                      <TalepStatuBadge durum={t.durum} />
                     </td>
                   </tr>
                 );

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
-import { talepDurumuBelirle } from "@/lib/domain";
+import { talepDurumunuGuncelle } from "@/lib/otomatik-talep";
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     domain?: string;
     talepDetaylari?: string;
     source?: string;
-    surecDurumAdi?: string;
+    surecDurumId?: string;
     adayCost?: string;
     iseBaslamaTarihi?: string | null;
   };
@@ -53,22 +53,14 @@ export async function POST(request: NextRequest) {
       domain: body.domain?.trim() || null,
       talepDetaylari: body.talepDetaylari?.trim() || null,
       source: body.source?.trim() || null,
-      surecDurumAdi: body.surecDurumAdi?.trim() || null,
+      surecDurumId: body.surecDurumId || null,
       adayCost: body.adayCost?.trim() || null,
       iseBaslamaTarihi: iseBaslama,
     },
   });
 
   // Yeni aday eklendikten sonra talebin statüsünü otomatik güncelle
-  const adaylari = await prisma.aday.findMany({
-    where: { talepId: talep.id },
-    select: { surecDurumAdi: true },
-  });
-  const yeniDurum = talepDurumuBelirle(adaylari.map((a) => a.surecDurumAdi));
-  await prisma.talep.update({
-    where: { id: talep.id },
-    data: { durumAdi: yeniDurum },
-  });
+  await talepDurumunuGuncelle(talep.id);
 
   return NextResponse.json({ ok: true, aday }, { status: 201 });
 }

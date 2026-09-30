@@ -23,7 +23,15 @@ export default async function TaleplerPage() {
           firma: { select: { ad: true, logoUrl: true } },
         },
       },
-      adaylar: { select: { id: true, adayAdi: true, surecDurumAdi: true, iseBaslamaTarihi: true } },
+      durum: { select: { id: true, ad: true, sira: true, ton: true } },
+      adaylar: {
+        select: {
+          id: true,
+          adayAdi: true,
+          surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
+          iseBaslamaTarihi: true,
+        },
+      },
     },
     orderBy: { talepNo: "desc" },
   });
@@ -57,7 +65,7 @@ export default async function TaleplerPage() {
           talepSahibi: t.talepSahibi,
           adayTuru: t.adayTuru,
           adet: t.adet,
-          durumAdi: t.durumAdi,
+          durum: t.durum,
           firmaAd: t.isBirimi.firma.ad,
           firmaLogo: t.isBirimi.firma.logoUrl,
           birimAd: t.isBirimi.ad,
@@ -66,7 +74,7 @@ export default async function TaleplerPage() {
           olusturulmaTarihi: t.olusturulmaTarihi,
           deadline: t.deadline,
           yasi: pozisyonYasi(t.olusturulmaTarihi),
-          deadlineGectiMi: deadlineGecti(t.durumAdi, t.deadline),
+          deadlineGectiMi: deadlineGecti(t.durum, t.deadline),
           basariylaKapandi: isBasariKapatildi(t.adaylar, t.adet),
         }))}
       />

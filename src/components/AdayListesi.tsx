@@ -2,13 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { adayStatuRenkSelect } from "@/lib/domain";
+import { adayStatuRenkSelect, type StatuNesne } from "@/lib/domain";
 
 interface Aday {
   id: string;
   adayAdi: string;
   source: string | null;
-  surecDurumAdi: string | null;
+  surecDurum: StatuNesne | null;
   domain: string | null;
   adayCost: string | null;
   iseBaslamaTarihi: Date | null;
@@ -24,7 +24,7 @@ function extractCost(value: string): { amount: string; currency: string } {
 
 interface AdayListesiProps {
   adaylar: Aday[];
-  surecDurumlari: string[];
+  surecDurumlari: StatuNesne[];
   talepId: string;
 }
 
@@ -60,7 +60,7 @@ export default function AdayListesi({
       ...prev,
       [aday.id]: {
         name: aday.adayAdi,
-        surecDurum: aday.surecDurumAdi || "",
+        surecDurum: aday.surecDurum?.id || "",
         source: aday.source || "",
         currency,
         cost: amount,
@@ -99,7 +99,7 @@ export default function AdayListesi({
       await fetch(`/api/adaylar/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ surecDurumAdi: yeniDurum }),
+        body: JSON.stringify({ surecDurumId: yeniDurum }),
       });
       router.refresh();
     } catch {
@@ -120,7 +120,7 @@ export default function AdayListesi({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           adayAdi: d.name,
-          surecDurumAdi: d.surecDurum,
+          surecDurumId: d.surecDurum,
           source: d.source,
           adayCost: fullCost,
           iseBaslamaTarihi: d.iseBas || null,
@@ -151,7 +151,7 @@ export default function AdayListesi({
           domain: newForm.domain || null,
           talepDetaylari: newForm.talepDetaylari || null,
           source: newForm.source || null,
-          surecDurumAdi: newForm.surecDurum || null,
+          surecDurumId: newForm.surecDurum || null,
           adayCost: fullCost,
           iseBaslamaTarihi: newForm.iseBas || null,
         }),
@@ -234,17 +234,17 @@ export default function AdayListesi({
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   <select
-                    value={aday.surecDurumAdi || ""}
+                    value={aday.surecDurum?.id || ""}
                     onChange={(e) => handleStatusChange(aday.id, e.target.value)}
                     disabled={savingStatus === aday.id}
                     className={`max-w-[200px] rounded-lg border border-zinc-300 px-2 py-1.5 text-xs outline-none focus:border-zinc-500 dark:border-zinc-700 ${adayStatuRenkSelect(
-                      aday.surecDurumAdi
+                      aday.surecDurum
                     )}`}
                   >
                     <option value="">—</option>
                     {surecDurumlari.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
+                      <option key={d.id} value={d.id ?? ""}>
+                        {d.ad}
                       </option>
                     ))}
                   </select>
@@ -289,8 +289,8 @@ export default function AdayListesi({
                     >
                       <option value="">Seçiniz</option>
                       {surecDurumlari.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
+                        <option key={d.id} value={d.id ?? ""}>
+                          {d.ad}
                         </option>
                       ))}
                     </select>
@@ -429,8 +429,8 @@ export default function AdayListesi({
               >
                 <option value="">Seçiniz</option>
                 {surecDurumlari.map((d) => (
-                  <option key={d} value={d}>
-                    {d}
+                  <option key={d.id} value={d.id ?? ""}>
+                    {d.ad}
                   </option>
                 ))}
               </select>

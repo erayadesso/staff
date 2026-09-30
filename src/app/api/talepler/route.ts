@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     adet?: string;
     notlar?: string;
     guncelNot?: string;
-    durumAdi?: string;
+    durumId?: string;
     deadline?: string | null;
     adessoSuresi?: string | null;
     isBirimiId?: string;
@@ -64,6 +64,20 @@ export async function POST(request: NextRequest) {
     if (!Number.isNaN(d.getTime())) adessoSuresi = d;
   }
 
+  // Varsayılan talep durumu: en düşük sira'lı "yeni" ton (ya da ilk kayıt)
+  let durumId: string | null = null;
+  if (body.durumId) {
+    const d = await prisma.talepDurumu.findUnique({ where: { id: body.durumId } });
+    if (d) durumId = d.id;
+  }
+  if (!durumId) {
+    const varsayilan = await prisma.talepDurumu.findFirst({
+      where: { ton: "yeni" },
+      orderBy: { sira: "asc" },
+    });
+    durumId = varsayilan?.id ?? null;
+  }
+
   try {
     const talep = await prisma.talep.create({
       data: {
@@ -72,7 +86,7 @@ export async function POST(request: NextRequest) {
         adet: body.adet?.trim() || null,
         notlar: body.notlar?.trim() || null,
         guncelNot: body.guncelNot?.trim() || null,
-        durumAdi: body.durumAdi?.trim() || "🆕 Yeni Talep",
+        durumId,
         deadline,
         adessoSuresi,
         isBirimiId: isBirimi.id,

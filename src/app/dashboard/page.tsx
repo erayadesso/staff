@@ -32,8 +32,13 @@ export default async function DashboardPage() {
             firma: { select: { ad: true } },
           },
         },
+        durum: { select: { id: true, ad: true, sira: true, ton: true } },
         adaylar: {
-          select: { id: true, adayAdi: true, surecDurumAdi: true },
+          select: {
+            id: true,
+            adayAdi: true,
+            surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
+          },
         },
         olusturan: { select: { name: true } },
       },
@@ -43,13 +48,13 @@ export default async function DashboardPage() {
   ]);
 
   const toplamTalep = talepler.length;
-  const aktifTalep = talepler.filter((t) => !isKapaliDurum(t.durumAdi)).length;
-  const kapaliTalep = talepler.filter((t) => isKapaliDurum(t.durumAdi)).length;
+  const aktifTalep = talepler.filter((t) => !isKapaliDurum(t.durum)).length;
+  const kapaliTalep = talepler.filter((t) => isKapaliDurum(t.durum)).length;
   const toplamAday = talepler.reduce((a, t) => a + t.adaylar.length, 0);
   const ortalamaAday = toplamTalep > 0 ? (toplamAday / toplamTalep).toFixed(1) : "0";
 
   const gecikmisTalepler = talepler.filter(
-    (t) => deadlineGecti(t.durumAdi, t.deadline)
+    (t) => deadlineGecti(t.durum, t.deadline)
   );
   const gecikmisSayisi = gecikmisTalepler.length;
 
@@ -66,8 +71,8 @@ export default async function DashboardPage() {
       const firmaTalepleri = talepler.filter(
         (t) => t.isBirimi.firmaId === firma.id
       );
-      const aktifler = firmaTalepleri.filter((t) => !isKapaliDurum(t.durumAdi));
-      const kapalilar = firmaTalepleri.filter((t) => isKapaliDurum(t.durumAdi));
+      const aktifler = firmaTalepleri.filter((t) => !isKapaliDurum(t.durum));
+      const kapalilar = firmaTalepleri.filter((t) => isKapaliDurum(t.durum));
       const adaySayisi = firmaTalepleri.reduce((a, t) => a + t.adaylar.length, 0);
       const toplamHedef = firmaTalepleri.reduce((a, t) => {
         const adet = parseInt(t.adet || "0", 10);
@@ -303,7 +308,7 @@ export default async function DashboardPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {talepler
-            .filter((t) => !isKapaliDurum(t.durumAdi))
+            .filter((t) => !isKapaliDurum(t.durum))
             .map((t) => {
               const prog = t.adet ? getProgressBar(Math.min(Math.round((t.adaylar.length / parseInt(t.adet)) * 100), 100)) : null;
               const hedef = parseInt(t.adet || "0", 10);
@@ -318,8 +323,8 @@ export default async function DashboardPage() {
                         <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
                           #{t.talepNo}
                         </span>
-                        <TalepStatuBadge durumAdi={t.durumAdi} />
-                        {deadlineGecti(t.durumAdi, t.deadline) && (
+                        <TalepStatuBadge durum={t.durum} />
+                        {deadlineGecti(t.durum, t.deadline) && (
                           <span
                             className="inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-800"
                             title="Müşteri son geçerlilik tarihi geçti"
@@ -360,9 +365,9 @@ export default async function DashboardPage() {
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
                     <span>{t.talepSahibi}</span>
                     {t.deadline && (
-                      <span className={deadlineGecti(t.durumAdi, t.deadline) ? "text-red-600 dark:text-red-400" : ""}>
+                      <span className={deadlineGecti(t.durum, t.deadline) ? "text-red-600 dark:text-red-400" : ""}>
                         DL: {fmtDateShort(t.deadline)}
-                        {deadlineGecti(t.durumAdi, t.deadline) && " ⚠"}
+                        {deadlineGecti(t.durum, t.deadline) && " ⚠"}
                       </span>
                     )}
                   </div>
@@ -373,10 +378,10 @@ export default async function DashboardPage() {
                         <span
                           key={a.id}
                           className="max-w-[100px] truncate rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-                          title={`${a.adayAdi}${a.surecDurumAdi ? ` — ${a.surecDurumAdi}` : ""}`}
+                          title={`${a.adayAdi}${a.surecDurum?.ad ? ` — ${a.surecDurum.ad}` : ""}`}
                         >
                           {a.adayAdi.split(" ")[0]}
-                          {a.surecDurumAdi && (
+                          {a.surecDurum?.ad && (
                             <span className="text-zinc-400">·</span>
                           )}
                         </span>

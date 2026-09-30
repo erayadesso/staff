@@ -62,6 +62,13 @@ function parseDate(v: unknown): Date | null {
   return null;
 }
 
+/** Excel'deki statü adını SurecDurumu id'sine eşler; yoksa null döner. */
+async function surecDurumId(ad: string | null): Promise<string | null> {
+  if (!ad) return null;
+  const d = await prisma.surecDurumu.findUnique({ where: { ad } });
+  return d?.id ?? null;
+}
+
 async function main() {
   const filePath =
     process.argv[2] ??
@@ -100,7 +107,7 @@ async function main() {
         domain: stringVeyaNull(r[c.domain]),
         talepDetaylari: stringVeyaNull(r[c.detay]),
         source: stringVeyaNull(r[c.source]),
-        surecDurumAdi: stringVeyaNull(r[c.durum]),
+        surecDurumId: await surecDurumId(stringVeyaNull(r[c.durum])),
         adayCost: stringVeyaNull(r[c.cost]),
         iseBaslamaTarihi: c.iseBas !== null ? parseDate(r[c.iseBas]) : null,
       };

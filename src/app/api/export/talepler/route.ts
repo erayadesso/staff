@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
-
-const KAPALI_STATULER = new Set(["🔴 Lost", "✅ Completed", "🔴 Geri Çekildi"]);
+import { isKapaliDurum } from "@/lib/domain";
 
 function csvEscape(v: string | null | undefined): string {
   const s = v ?? "";
@@ -21,7 +20,8 @@ export async function GET() {
   const talepler = await prisma.talep.findMany({
     include: {
       isBirimi: { include: { firma: true } },
-      adaylar: true,
+      durum: { select: { ad: true, ton: true } },
+      adaylar: { include: { surecDurum: { select: { ad: true, ton: true } } } },
     },
     orderBy: { talepNo: "asc" },
   });
@@ -32,7 +32,7 @@ export async function GET() {
   ];
 
   for (const t of talepler) {
-    const acik = !KAPALI_STATULER.has(t.durumAdi) ? "Açık" : "Kapalı";
+    const acik = !isKapaliDurum(t.durum) ? "Açık" : "Kapalı";
     satirlar.push([
       String(t.talepNo),
       t.isBirimi.firma.ad,
@@ -40,7 +40,7 @@ export async function GET() {
       t.talepSahibi,
       t.adayTuru,
       t.adet ?? "",
-      t.durumAdi,
+      t.durum?.ad ?? "",
       acik,
       String(t.adaylar.length),
       t.olusturulmaTarihi
@@ -69,7 +69,7 @@ export async function GET() {
         a.adayAdi,
         a.domain ?? "",
         a.source ?? "",
-        a.surecDurumAdi ?? "",
+        a.surecDurum?.ad ?? "",
         a.adayCost ?? "",
         a.iseBaslamaTarihi
           ? new Date(a.iseBaslamaTarihi).toLocaleDateString("tr-TR")

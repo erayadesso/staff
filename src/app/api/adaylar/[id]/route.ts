@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
-import { talepDurumuBelirle } from "@/lib/domain";
+import { talepDurumunuGuncelle } from "@/lib/otomatik-talep";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -14,11 +14,10 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
 
   let body: {
     adayAdi?: string;
-    surecDurumAdi?: string | null;
+    surecDurumId?: string | null;
     source?: string | null;
     adayCost?: string | null;
     iseBaslamaTarihi?: string | null;
-    guncel?: boolean;
   };
   try {
     body = await request.json();
@@ -44,8 +43,8 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     where: { id },
     data: {
       ...(body.adayAdi !== undefined && { adayAdi: body.adayAdi }),
-      ...(body.surecDurumAdi !== undefined && {
-        surecDurumAdi: body.surecDurumAdi,
+      ...(body.surecDurumId !== undefined && {
+        surecDurumId: body.surecDurumId || null,
       }),
       ...(body.source !== undefined && { source: body.source }),
       ...(body.adayCost !== undefined && { adayCost: body.adayCost }),
@@ -53,19 +52,9 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     },
   });
 
-  // Aday statüsü (veya liste) değiştiyse talebin statüsünü otomatik güncelle
-  if (body.surecDurumAdi !== undefined && aday.talepId) {
-    const adaylari = await prisma.aday.findMany({
-      where: { talepId: aday.talepId },
-      select: { surecDurumAdi: true },
-    });
-    const yeniDurum = talepDurumuBelirle(
-      adaylari.map((a) => a.surecDurumAdi)
-    );
-    await prisma.talep.update({
-      where: { id: aday.talepId },
-      data: { durumAdi: yeniDurum },
-    });
+  // Aday statüsü değiştiyse talebin statüsünü otomatik güncelle
+  if (body.surecDurumId !== undefined && aday.talepId) {
+    await talepDurumunuGuncelle(aday.talepId);
   }
 
   return NextResponse.json({ ok: true, aday });
@@ -88,17 +77,7 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
 
   // Aday silindikten sonra talebin statüsünü otomatik güncelle
   if (talepId) {
-    const adaylari = await prisma.aday.findMany({
-      where: { talepId },
-      select: { surecDurumAdi: true },
-    });
-    const yeniDurum = talepDurumuBelirle(
-      adaylari.map((a) => a.surecDurumAdi)
-    );
-    await prisma.talep.update({
-      where: { id: talepId },
-      data: { durumAdi: yeniDurum },
-    });
+    await talepDurumunuGuncelle(talepId);
   }
 
   return NextResponse.json({ ok: true });

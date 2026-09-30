@@ -11,7 +11,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   }
   const { id } = await ctx.params;
 
-  let body: { durumAdi?: string; guncelNot?: string };
+  let body: { durumId?: string; guncelNot?: string };
   try {
     body = await request.json();
   } catch {
@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   const talep = await prisma.talep.update({
     where: { id },
     data: {
-      ...(body.durumAdi !== undefined && { durumAdi: body.durumAdi }),
+      ...(body.durumId !== undefined && { durumId: body.durumId || null }),
       ...(body.guncelNot !== undefined && { guncelNot: body.guncelNot }),
     },
   });

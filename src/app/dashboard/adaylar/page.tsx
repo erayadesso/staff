@@ -17,7 +17,7 @@ export default async function BaglantisizAdaylarPage() {
         adayAdi: true,
         domain: true,
         source: true,
-        surecDurumAdi: true,
+        surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
         firmaAd: true,
       },
       orderBy: { firmaAd: "asc" },
@@ -82,8 +82,8 @@ export default async function BaglantisizAdaylarPage() {
                       {a.source}
                     </span>
                   )}
-                  {a.surecDurumAdi && (
-                    <AdayStatuBadge surecDurumAdi={a.surecDurumAdi} />
+                  {a.surecDurum && (
+                    <AdayStatuBadge durum={a.surecDurum} />
                   )}
                 </div>
                 <AdayBagla

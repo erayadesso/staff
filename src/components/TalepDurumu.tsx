@@ -2,21 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { talepStatuAmblem } from "@/lib/domain";
+import { talepStatuAmblem, type StatuNesne } from "@/lib/domain";
 
 export default function TalepDurumu({
   talepId,
-  mevcutDurum,
+  mevcutDurumId,
   guncelNot,
   talepDurumlari,
 }: {
   talepId: string;
-  mevcutDurum: string;
+  mevcutDurumId: string | null;
   guncelNot: string | null;
-  talepDurumlari: string[];
+  talepDurumlari: StatuNesne[];
 }) {
   const router = useRouter();
-  const [durum, setDurum] = useState(mevcutDurum);
+  const [durum, setDurum] = useState(mevcutDurumId ?? "");
   const [not, setNot] = useState(guncelNot ?? "");
   const [saving, setSaving] = useState(false);
 
@@ -26,7 +26,7 @@ export default function TalepDurumu({
       await fetch(`/api/talepler/${talepId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ durumAdi: durum, guncelNot: not }),
+        body: JSON.stringify({ durumId: durum, guncelNot: not }),
       });
       router.refresh();
     } finally {
@@ -50,8 +50,8 @@ export default function TalepDurumu({
             className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           >
             {talepDurumlari.map((d) => (
-              <option key={d} value={d}>
-                {talepStatuAmblem(d)} {d}
+              <option key={d.id} value={d.id ?? ""}>
+                {talepStatuAmblem(d)} {d.ad}
               </option>
             ))}
           </select>

@@ -32,13 +32,14 @@ export default async function TalepDetayPage({
           firma: { select: { ad: true } },
         },
       },
+      durum: { select: { id: true, ad: true, sira: true, ton: true } },
       olusturan: { select: { name: true, email: true } },
       adaylar: {
         select: {
           id: true,
           adayAdi: true,
           source: true,
-          surecDurumAdi: true,
+          surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
           domain: true,
           adayCost: true,
           iseBaslamaTarihi: true,
@@ -74,7 +75,7 @@ export default async function TalepDetayPage({
   });
 
   const acikAdaylar = talep.adaylar.filter(
-    (a) => a.surecDurumAdi && /beğendi|Onaylandı|Teklif/i.test(a.surecDurumAdi)
+    (a) => a.surecDurum?.ton && a.surecDurum.ton !== "kapandi" && a.surecDurum.ton !== "bekliyor"
   ).length;
 
   function fmtDate(d: Date | null) {
@@ -111,7 +112,7 @@ export default async function TalepDetayPage({
                   ✅ Başarıyla Kapandı
                 </span>
               )}
-              <TalepStatuBadge durumAdi={talep.durumAdi} className="px-2 py-1 text-xs" />
+              <TalepStatuBadge durum={talep.durum} className="px-2 py-1 text-xs" />
               {user.role === "ADMIN" && (
                 <TalepSilButonu talepNo={talep.talepNo} talepId={talep.id} />
               )}
@@ -119,7 +120,7 @@ export default async function TalepDetayPage({
           </div>
       </div>
 
-      {deadlineGecti(talep.durumAdi, talep.deadline) && (
+      {deadlineGecti(talep.durum, talep.deadline) && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           ⚠️ Müşteri talep son geçerlilik tarihi (DEADLINE) geçti.
           {kalanGun(talep.deadline) != null &&
@@ -157,13 +158,13 @@ export default async function TalepDetayPage({
                 <dt className="text-xs text-zinc-500">Müşteri Son Geçerlilik</dt>
                 <dd
                   className={
-                    deadlineGecti(talep.durumAdi, talep.deadline)
+                    deadlineGecti(talep.durum, talep.deadline)
                       ? "font-medium text-red-600 dark:text-red-400"
                       : "font-medium text-zinc-800 dark:text-zinc-200"
                   }
                 >
                   {fmtDate(talep.deadline)}
-                  {deadlineGecti(talep.durumAdi, talep.deadline) && (
+                  {deadlineGecti(talep.durum, talep.deadline) && (
                     <span className="ml-1 inline-flex items-center rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
                       geçti
                     </span>
@@ -209,14 +210,14 @@ export default async function TalepDetayPage({
                 id: a.id,
                 adayAdi: a.adayAdi,
                 source: a.source,
-                surecDurumAdi: a.surecDurumAdi,
+                surecDurum: a.surecDurum,
                 domain: a.domain,
                 adayCost: a.adayCost,
                 iseBaslamaTarihi: a.iseBaslamaTarihi,
                 talepDetaylari: a.talepDetaylari,
                 createdAt: a.createdAt,
               }))}
-              surecDurumlari={surecDurumlari.map((d) => d.ad)}
+              surecDurumlari={surecDurumlari}
               talepId={talep.id}
             />
           </section>
@@ -226,9 +227,9 @@ export default async function TalepDetayPage({
           <div className="lg:sticky lg:top-6">
             <TalepDurumu
               talepId={talep.id}
-              mevcutDurum={talep.durumAdi}
+              mevcutDurumId={talep.durumId}
               guncelNot={talep.guncelNot}
-              talepDurumlari={talepDurumlari.map((d) => d.ad)}
+              talepDurumlari={talepDurumlari}
             />
           </div>
         </div>

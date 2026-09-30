@@ -22,6 +22,27 @@ function excelSerialToDate(serial: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+/** Excel'deki statü adını TalepDurumu id'sine eşler; bulamazsa "yeni" tona düşer. */
+async function talepDurumId(ad: string): Promise<string | null> {
+  if (ad) {
+    const d = await prisma.talepDurumu.findUnique({ where: { ad } });
+    if (d) return d.id;
+  }
+  const def = await prisma.talepDurumu.findFirst({
+    where: { ton: "yeni" },
+    orderBy: { sira: "asc" },
+    select: { id: true },
+  });
+  return def?.id ?? null;
+}
+
+/** Excel'deki statü adını SurecDurumu id'sine eşler; yoksa null döner. */
+async function surecDurumId(ad: string | null): Promise<string | null> {
+  if (!ad) return null;
+  const d = await prisma.surecDurumu.findUnique({ where: { ad } });
+  return d?.id ?? null;
+}
+
 async function main() {
   const filePath =
     process.argv[2] ??
@@ -100,7 +121,7 @@ async function main() {
         adet: adet ? String(adet).trim() : null,
         notlar,
         guncelNot,
-        durumAdi,
+        durumId: await talepDurumId(durumAdi),
         olusturulmaTarihi: olusturmaTarihi ?? new Date(),
         deadline,
         isBirimiId: birim.id,
