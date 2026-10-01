@@ -2,35 +2,26 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import ExcelIndirButton from "@/components/ExcelIndirButton";
 import TalepStatuBadge from "@/components/TalepStatuBadge";
-import {
-  deadlineGecti,
-  isKapaliDurum,
-  pozisyonYasi,
-} from "@/lib/domain";
+import { isKapaliDurum, pozisyonYasi, deadlineGecti } from "@/lib/domain";
+import DashboardCharts from "@/components/DashboardCharts";
 
 export const dynamic = "force-dynamic";
 
 function fmtDateShort(d: Date | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("tr-TR", {
-    day: "2-digit",
-    month: "short",
-  });
+  return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
 }
 
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) return null;
 
-  const [talepler, firmalar] = await Promise.all([
+  const bugun = new Date();
+  const [talepler, firmalar, adaylar, surecDurumlari] = await Promise.all([
     prisma.talep.findMany({
       include: {
         isBirimi: {
-          select: {
-            ad: true,
-            firmaId: true,
-            firma: { select: { ad: true } },
-          },
+          select: { ad: true, firmaId: true, firma: { select: { ad: true } } },
         },
         durum: { select: { id: true, ad: true, sira: true, ton: true } },
         adaylar: {
@@ -38,64 +29,105 @@ export default async function DashboardPage() {
             id: true,
             adayAdi: true,
             surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
+            iseBaslamaTarihi: true,
           },
         },
         olusturan: { select: { name: true } },
       },
-      orderBy: { talepNo: "asc" },
+      orderBy: { talepNo: "desc" },
     }),
     prisma.firma.findMany({ orderBy: { ad: "asc" } }),
+    prisma.aday.findMany({
+      select: {
+        surecDurum: { select: { ad: true, sira: true } },
+        iseBaslamaTarihi: true,
+      },
+    }),
+    prisma.surecDurumu.findMany({ orderBy: { sira: "asc" } }),
   ]);
 
+  // KPI
   const toplamTalep = talepler.length;
-  const aktifTalep = talepler.filter((t) => !isKapaliDurum(t.durum)).length;
-  const kapaliTalep = talepler.filter((t) => isKapaliDurum(t.durum)).length;
+  const aktifTalep = talepler.filter((t) => !isKapaliDurum(t.durum?.ad || "")).length;
+  const kapaliTalep = toplamTalep - aktifTalep;
   const toplamAday = talepler.reduce((a, t) => a + t.adaylar.length, 0);
-  const ortalamaAday = toplamTalep > 0 ? (toplamAday / toplamTalep).toFixed(1) : "0";
+  const iseBasan = adaylar.filter((a) => a.iseBaslamaTarihi).length;
+  const fillRate = toplamTalep > 0 ? Math.round((iseBasan / (toplamTalep * 5)) * 100) : 0;
+  const ortalamaDolumGun = kapaliTalep > 0
+    ? Math.round(talepler.filter((t) => isKapaliDurum(t.durum?.ad || "")).reduce((a, t) => a + pozisyonYasi(t.olusturulmaTarihi), 0) / kapaliTalep)
+    : 0;
 
-  const gecikmisTalepler = talepler.filter(
-    (t) => deadlineGecti(t.durum, t.deadline)
-  );
-  const gecikmisSayisi = gecikmisTalepler.length;
-
-  const bugun = new Date();
-  const gunIcinde = talepler.filter((t) => {
+  // Uyarılar
+  const gecikmis = talepler.filter((t) => deadlineGecti(t.durum, t.deadline));
+  const yaklasan = talepler.filter((t) => {
     if (!t.deadline) return false;
-    const kalan = Math.ceil((t.deadline.getTime() - bugun.getTime()) / (1000 * 60 * 60 * 24));
+    const kalan = Math.ceil((t.deadline.getTime() - bugun.getTime()) / 86400000);
     return kalan >= 0 && kalan <= 7;
   });
 
-  // Firma bazında gruplama
-  const firmaOzet = firmalar
-    .map((firma) => {
-      const firmaTalepleri = talepler.filter(
-        (t) => t.isBirimi.firmaId === firma.id
-      );
-      const aktifler = firmaTalepleri.filter((t) => !isKapaliDurum(t.durum));
-      const kapalilar = firmaTalepleri.filter((t) => isKapaliDurum(t.durum));
-      const adaySayisi = firmaTalepleri.reduce((a, t) => a + t.adaylar.length, 0);
-      const toplamHedef = firmaTalepleri.reduce((a, t) => {
-        const adet = parseInt(t.adet || "0", 10);
-        return a + (adet > 0 ? adet : 0);
-      }, 0);
-      const doluluk = toplamHedef > 0 ? Math.round((adaySayisi / toplamHedef) * 100) : 0;
-      const enYasli = aktifler.reduce(
-        (max, t) => Math.max(max, pozisyonYasi(t.olusturulmaTarihi)),
-        0
-      );
-      return {
-        firma,
-        talepSayisi: firmaTalepleri.length,
-        aktifTalepSayisi: aktifler.length,
-        kapaliTalepSayisi: kapalilar.length,
-        adaySayisi,
-        toplamHedef,
-        doluluk,
-        enYasli,
-        aktifler,
-      };
-    })
-    .filter((o) => o.talepSayisi > 0);
+  // Firma analiz
+  const firmaAnaliz = firmalar.map((f) => {
+    const ft = talepler.filter((t) => t.isBirimi.firmaId === f.id);
+    const aktif = ft.filter((t) => !isKapaliDurum(t.durum?.ad || ""));
+    const toplamHedef = ft.reduce((a, t) => a + (parseInt(t.adet || "0") || 0), 0);
+    const mevcutAday = ft.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ton !== "karsilandi").length, 0);
+    const doluluk = toplamHedef > 0 ? Math.round((mevcutAday / toplamHedef) * 100) : 0;
+    const gecikmisCount = ft.filter((t) => deadlineGecti(t.durum, t.deadline)).length;
+    return {
+      firma: f.ad,
+      toplamTalep: ft.length,
+      aktifTalep: aktif.length,
+      doluluk,
+      gecikmis: gecikmisCount,
+      hedef: toplamHedef,
+      mevcut: mevcutAday,
+    };
+  }).filter((f) => f.toplamTalep > 0).sort((a, b) => b.toplamTalep - a.toplamTalep);
+
+  // Grafige veriler
+  const durumDagilimi = surecDurumlari.map((s) => ({
+    name: s.ad,
+    value: talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ad === s.ad).length, 0),
+  })).filter((d) => d.value > 0);
+
+  const firmaTalepBar = firmaAnaliz.map((f) => ({ name: f.firma.slice(0, 15), value: f.toplamTalep }));
+
+  const fillRateBar = firmaAnaliz.map((f) => ({
+    firma: f.firma.slice(0, 15),
+    doluluk: f.doluluk,
+    renk: f.doluluk >= 80 ? "#10b981" : f.doluluk >= 50 ? "#f59e0b" : "#ef4444",
+  }));
+
+  // Trend
+  const son90Gun = new Date(bugun.getTime() - 90 * 86400000);
+  const trendData = Array.from({ length: 13 }, (_, i) => {
+    const baslangic = new Date(bugun.getTime() - (90 - i * 7) * 86400000);
+    const bitis = new Date(bugun.getTime() - (83 - i * 7) * 86400000);
+    const olusturan = talepler.filter((t) => {
+      const d = new Date(t.olusturulmaTarihi);
+      return d >= baslangic && d < bitis;
+    }).length;
+    const kapatilan = talepler.filter((t) => {
+      if (!isKapaliDurum(t.durum?.ad || "")) return false;
+      const d = new Date(t.olusturulmaTarihi);
+      return d >= baslangic && d < bitis;
+    }).length;
+    const haftaNum = Math.floor((bugun.getTime() - baslangic.getTime()) / 86400000 / 7);
+    const gun = baslangic.getDate();
+    const ay = baslangic.toLocaleString("tr-TR", { month: "short" });
+    return {
+      hafta: `${gun} ${ay}`,
+      olusturan,
+      kapatilan,
+    };
+  });
+
+  const pipelineData = surecDurumlari.map((s) => ({
+    name: s.ad.length > 20 ? s.ad.slice(0, 18) + "…" : s.ad,
+    value: talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ad === s.ad).length, 0),
+  })).filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
+
+  const PIE_COLORS = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6"];
 
   function getProgressBar(pct: number) {
     const renk = pct >= 100 ? "bg-emerald-500" : pct >= 50 ? "bg-blue-500" : pct >= 25 ? "bg-amber-500" : "bg-zinc-500";
@@ -117,19 +149,17 @@ export default async function DashboardPage() {
         <ExcelIndirButton />
       </div>
 
-      {/* Özet Kartları */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      {/* 1. Üst KPI Kartları */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
         {[
-          { label: "Toplam Talep", deger: toplamTalep, renk: "text-blue-600 dark:text-blue-400", alt: `${aktifTalep} aktif` },
-          { label: "Aktif Pozisyon", deger: aktifTalep, renk: "text-amber-600 dark:text-amber-400", alt: `${aktifTalep} açık` },
-          { label: "Kapalı Talep", deger: kapaliTalep, renk: "text-emerald-600 dark:text-emerald-400", alt: "başarıyla tamamlandı" },
-          { label: "Toplam Aday", deger: toplamAday, renk: "text-purple-600 dark:text-purple-400", alt: `Ort: ${ortalamaAday}/talep` },
-          { label: "Doluluk Oranı", deger: "%", alt: firmaOzet.reduce((a, f) => a + f.doluluk, 0) > 0 ? `${Math.round(firmaOzet.reduce((a, f) => a + f.doluluk, 0) / firmaOzet.length)}% ortalama` : "veri yok" },
+          { label: "Toplam Talep", deger: toplamTalep, alt: `${aktifTalep} aktif`, renk: "text-blue-600 dark:text-blue-400" },
+          { label: "Aktif Pozisyon", deger: aktifTalep, alt: `${aktifTalep} açık`, renk: "text-amber-600 dark:text-amber-400" },
+          { label: "Kapalı Talep", deger: kapaliTalep, alt: "tamamlandı", renk: "text-emerald-600 dark:text-emerald-400" },
+          { label: "Toplam Aday", deger: toplamAday, alt: `${iseBasan} işe başladı`, renk: "text-purple-600 dark:text-purple-400" },
+          { label: "Fill Rate", deger: `%${fillRate}`, alt: `${ortalamaDolumGun} gün avg.`, renk: "text-cyan-600 dark:text-cyan-400" },
+          { label: "Aday Pipeline", deger: pipelineData.reduce((a, d) => a + d.value, 0), alt: "bekleyen", renk: "text-indigo-600 dark:text-indigo-400" },
         ].map((s) => (
-          <div
-            key={s.label}
-            className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
-          >
+          <div key={s.label} className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
             <div className="absolute top-0 right-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-gradient-to-br from-blue-500/5 to-transparent dark:from-blue-400/10" />
             <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
               {s.label}
@@ -144,50 +174,44 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Kritik Uyarılar */}
-      {(gecikmisSayisi > 0 || gunIcinde.length > 0) && (
+      {/* 6. Kritik Uyarılar */}
+      {(gecikmis.length > 0 || yaklasan.length > 0) && (
         <div className="space-y-3">
-          {gecikmisSayisi > 0 && (
+          {gecikmis.length > 0 && (
             <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
               <span className="text-2xl">🔴</span>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-red-800 dark:text-red-300">
-                  {gecikmisSayisi} talebin deadline&apos;i geçti
+                  {gecikmis.length} talebin deadline&apos;ı geçti
                 </p>
                 <p className="mt-1 text-xs text-red-600 dark:text-red-400">
                   Müşteri son geçerlilik tarihi geçmiş talepler — acil işlem gereklidir.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {gecikmisTalepler.map((t) => (
-                    <span
-                      key={t.id}
-                      className="inline-flex items-center gap-1 rounded border border-red-300 bg-white px-2 py-0.5 text-xs font-medium text-red-700 dark:border-red-800 dark:bg-zinc-900 dark:text-red-300"
-                    >
-                      #{t.talepNo} · {t.isBirimi.firma.ad} · {pozisyonYasi(t.olusturulmaTarihi)} gündür açık
+                  {gecikmis.map((t) => (
+                    <span key={t.id} className="inline-flex items-center gap-1 rounded border border-red-300 bg-white px-2 py-0.5 text-xs font-medium text-red-700 dark:border-red-800 dark:bg-zinc-900 dark:text-red-300">
+                      #{t.talepNo} · {t.isBirimi.firma.ad} · {pozisyonYasi(t.olusturulmaTarihi)} gün
                     </span>
                   ))}
                 </div>
               </div>
             </div>
           )}
-          {gunIcinde.length > 0 && (
+          {yaklasan.length > 0 && (
             <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
               <span className="text-2xl">🟡</span>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                  {gunIcinde.length} talebin deadline&apos;i 7 gün içinde doluyor
+                  {yaklasan.length} talebin deadline&apos;ı 7 gün içinde doluyor
                 </p>
                 <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
                   Yaklaşan son tarihler — takip gereklidir.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {gunIcinde.map((t) => {
-                    const kalan = Math.ceil((t.deadline!.getTime() - bugun.getTime()) / (1000 * 60 * 60 * 24));
+                  {yaklasan.map((t) => {
+                    const kalan = Math.ceil((t.deadline!.getTime() - bugun.getTime()) / 86400000);
                     return (
-                      <span
-                        key={t.id}
-                        className="inline-flex items-center gap-1 rounded border border-amber-300 bg-white px-2 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300"
-                      >
+                      <span key={t.id} className="inline-flex items-center gap-1 rounded border border-amber-300 bg-white px-2 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300">
                         #{t.talepNo} · {t.isBirimi.firma.ad} · {kalan} gün kaldı
                       </span>
                     );
@@ -199,7 +223,16 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Firma Bazında Tablo */}
+      {/* 2. Talep Dağılımı + 3. Firma Analizi + 4. Trend + 5. Pipeline */}
+      <DashboardCharts
+        durumDagilimi={durumDagilimi}
+        firmaTalepBar={firmaTalepBar}
+        fillRateBar={fillRateBar}
+        trendData={trendData}
+        pipelineData={pipelineData}
+      />
+
+      {/* 3. Firma Bazında Tablo */}
       <section>
         <div className="mb-4 flex items-center justify-between">
           <div>
@@ -220,69 +253,52 @@ export default async function DashboardPage() {
                 <th className="px-4 py-3 font-medium text-center">Aktif</th>
                 <th className="px-4 py-3 font-medium text-center">Aday</th>
                 <th className="px-4 py-3 font-medium">Hedef / Doluluk</th>
-                <th className="px-4 py-3 font-medium">Yaşlı Pozisyon</th>
+                <th className="px-4 py-3 font-medium">Geçen Deadline</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-              {firmaOzet.map((o) => (
-                <tr
-                  key={o.firma.id}
-                  className="transition hover:bg-zinc-50 dark:hover:bg-zinc-900/40"
-                >
+              {firmaAnaliz.map((f) => (
+                <tr key={f.firma} className="transition hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
                   <td className="px-4 py-4">
-                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                      {o.firma.ad}
-                    </p>
-                  </td>
-                  <td className="px-4 py-4 text-center text-zinc-700 dark:text-zinc-300">
-                    <span className="rounded-lg bg-zinc-100 px-2 py-1 font-semibold text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">
-                      {o.talepSayisi}
-                    </span>
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">{f.firma}</p>
                   </td>
                   <td className="px-4 py-4 text-center">
-                    <span className="rounded-lg bg-amber-100 px-2 py-1 font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                      {o.aktifTalepSayisi}
-                    </span>
+                    <span className="rounded-lg bg-zinc-100 px-2 py-1 font-semibold text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">{f.toplamTalep}</span>
                   </td>
                   <td className="px-4 py-4 text-center">
-                    <span className="rounded-lg bg-purple-100 px-2 py-1 font-semibold text-purple-800 dark:bg-purple-950/40 dark:text-purple-300">
-                      {o.adaySayisi}
-                    </span>
+                    <span className="rounded-lg bg-amber-100 px-2 py-1 font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{f.aktifTalep}</span>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <span className="rounded-lg bg-purple-100 px-2 py-1 font-semibold text-purple-800 dark:bg-purple-950/40 dark:text-purple-300">{f.mevcut}</span>
                   </td>
                   <td className="px-4 py-4">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-500 dark:text-zinc-400">
-                          {o.adaySayisi}/{o.toplamHedef || "—"}
-                        </span>
+                        <span className="text-zinc-500 dark:text-zinc-400">{f.mevcut}/{f.hedef || "—"}</span>
                         <span className={`font-semibold ${
-                          o.doluluk >= 100 ? "text-emerald-600 dark:text-emerald-400" :
-                          o.doluluk >= 50 ? "text-blue-600 dark:text-blue-400" :
+                          f.doluluk >= 100 ? "text-emerald-600 dark:text-emerald-400" :
+                          f.doluluk >= 50 ? "text-blue-600 dark:text-blue-400" :
                           "text-zinc-600 dark:text-zinc-400"
-                        }`}>
-                          %{o.doluluk}
-                        </span>
+                        }`}>%{f.doluluk}</span>
                       </div>
                       <div className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                         <div
-                          className={`h-full rounded-full transition-all ${getProgressBar(o.doluluk).renk}`}
-                          style={{ width: `${Math.min(o.doluluk, 100)}%` }}
+                          className={`h-full rounded-full transition-all ${getProgressBar(f.doluluk).renk}`}
+                          style={{ width: `${Math.min(f.doluluk, 100)}%` }}
                         />
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-4 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
-                    {o.aktifTalepSayisi > 0 ? (
-                      <span className={`${o.enYasli > 30 ? "text-red-600 dark:text-red-400" : ""}`}>
-                        {o.enYasli} gün
-                      </span>
+                  <td className="px-4 py-4 text-center">
+                    {f.gecikmis > 0 ? (
+                      <span className="rounded-lg bg-red-100 px-2 py-1 font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">{f.gecikmis}</span>
                     ) : (
                       <span className="text-zinc-400">—</span>
                     )}
                   </td>
                 </tr>
               ))}
-              {firmaOzet.length === 0 && (
+              {firmaAnaliz.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
                     Henüz firma verisi yok.
@@ -308,41 +324,27 @@ export default async function DashboardPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {talepler
-            .filter((t) => !isKapaliDurum(t.durum))
+            .filter((t) => !isKapaliDurum(t.durum?.ad || ""))
             .map((t) => {
-              const prog = t.adet ? getProgressBar(Math.min(Math.round((t.adaylar.length / parseInt(t.adet)) * 100), 100)) : null;
               const hedef = parseInt(t.adet || "0", 10);
+              const prog = hedef > 0 ? getProgressBar(Math.min(Math.round((t.adaylar.length / hedef) * 100), 100)) : null;
               return (
-                <div
-                  key={t.id}
-                  className="group overflow-hidden rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950"
-                >
+                <div key={t.id} className="group overflow-hidden rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">
-                          #{t.talepNo}
-                        </span>
+                        <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">#{t.talepNo}</span>
                         <TalepStatuBadge durum={t.durum} />
                         {deadlineGecti(t.durum, t.deadline) && (
-                          <span
-                            className="inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-800"
-                            title="Müşteri son geçerlilik tarihi geçti"
-                          >
+                          <span className="inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-800" title="Deadline geçti">
                             ⚠ geçti
                           </span>
                         )}
                       </div>
-                      <h3 className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                        {t.adayTuru}
-                      </h3>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                        {t.isBirimi.firma.ad} · {t.isBirimi.ad}
-                      </p>
+                      <h3 className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.adayTuru}</h3>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{t.isBirimi.firma.ad} · {t.isBirimi.ad}</p>
                     </div>
-                    <span className={`shrink-0 text-[10px] font-medium ${
-                      pozisyonYasi(t.olusturulmaTarihi) > 30 ? "text-red-600 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"
-                    }`}>
+                    <span className={`shrink-0 text-[10px] font-medium ${pozisyonYasi(t.olusturulmaTarihi) > 30 ? "text-red-600 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}>
                       {pozisyonYasi(t.olusturulmaTarihi)} gün
                     </span>
                   </div>
@@ -354,10 +356,7 @@ export default async function DashboardPage() {
                         <span>%{prog.pct}</span>
                       </div>
                       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                        <div
-                          className={`h-full rounded-full ${prog.renk}`}
-                          style={{ width: `${prog.pct}%` }}
-                        />
+                        <div className={`h-full rounded-full ${prog.renk}`} style={{ width: `${prog.pct}%` }} />
                       </div>
                     </div>
                   )}
@@ -366,8 +365,7 @@ export default async function DashboardPage() {
                     <span>{t.talepSahibi}</span>
                     {t.deadline && (
                       <span className={deadlineGecti(t.durum, t.deadline) ? "text-red-600 dark:text-red-400" : ""}>
-                        DL: {fmtDateShort(t.deadline)}
-                        {deadlineGecti(t.durum, t.deadline) && " ⚠"}
+                        DL: {fmtDateShort(t.deadline)}{deadlineGecti(t.durum, t.deadline) && " ⚠"}
                       </span>
                     )}
                   </div>
@@ -375,22 +373,11 @@ export default async function DashboardPage() {
                   {t.adaylar.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {t.adaylar.slice(0, 4).map((a) => (
-                        <span
-                          key={a.id}
-                          className="max-w-[100px] truncate rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-                          title={`${a.adayAdi}${a.surecDurum?.ad ? ` — ${a.surecDurum.ad}` : ""}`}
-                        >
-                          {a.adayAdi.split(" ")[0]}
-                          {a.surecDurum?.ad && (
-                            <span className="text-zinc-400">·</span>
-                          )}
+                        <span key={a.id} className="max-w-[100px] truncate rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" title={`${a.adayAdi}${a.surecDurum?.ad ? ` — ${a.surecDurum.ad}` : ""}`}>
+                          {a.adayAdi.split(" ")[0]}{a.surecDurum?.ad && <span className="text-zinc-400">·</span>}
                         </span>
                       ))}
-                      {t.adaylar.length > 4 && (
-                        <span className="text-[10px] text-zinc-400">
-                          +{t.adaylar.length - 4}
-                        </span>
-                      )}
+                      {t.adaylar.length > 4 && <span className="text-[10px] text-zinc-400">+{t.adaylar.length - 4}</span>}
                     </div>
                   )}
                 </div>
