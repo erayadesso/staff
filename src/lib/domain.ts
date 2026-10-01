@@ -191,14 +191,25 @@ export function adayIlerlemeSkoru(durum: StatuNesne | null | undefined): number 
   return durum.sira;
 }
 
-/** Aday tonu -> talep tonu haritası (hard-coded UI sabiti, DB'den bağımsız). */
+/** Aday statü adı -> talep tonu haritası (hard-coded UI sabiti, DB'den bağımsız). */
 const ADAYDAN_TALEPE = new Map<string, string>([
-  ["ic", "ic"],
-  ["dis", "dis"],
-  ["gorsme", "gorsme"],
-  ["secim", "secim"],
-  ["kabul", "kabul"],
-  ["karsilandi", "karsilandi"],
+  ["Aday Belirlendi", "ic"],
+  ["İç Değerlendirmede", "ic"],
+  ["Sunum İçin Onaylandı", "ic"],
+  ["NoName CV Hazırlanıyor", "dis"],
+  ["Müşteriye Sunuma Hazır", "dis"],
+  ["Müşteriye İletildi", "dis"],
+  ["Müşteri Değerlendirmesinde", "dis"],
+  ["Görüşme Talep Edildi", "gorsme"],
+  ["Görüşme Planlandı", "gorsme"],
+  ["Görüşme Tamamlandı", "gorsme"],
+  ["Dış Kaynak Hizmet Teklifi İletildi", "dis"],
+  ["Aday Seçildi", "secim"],
+  ["Başlangıç Tarihi Netleştiriliyor", "secim"],
+  ["İşe Giriş Evrakları Hazırlanıyor", "kabul"],
+  ["Evraklar Teslim Edildi", "kabul"],
+  ["Başlangıca Hazır", "kabul"],
+  ["İşe Başladı", "karsilandi"],
 ]);
 
 /**
@@ -220,7 +231,7 @@ export function talepDurumuBelirle(
     const ton = d.ton;
     if (!ton) continue;
     if (ADAY_CIKIS_TONLARI.has(ton)) continue;
-    const talepTon = ADAYDAN_TALEPE.get(ton);
+    const talepTon = ADAYDAN_TALEPE.get(d.ad || "");
     if (!talepTon) continue;
     const sira = typeof d.sira === "number" ? d.sira : -1;
     if (sira > enIleriSira) {
