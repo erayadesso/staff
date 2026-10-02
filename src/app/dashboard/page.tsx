@@ -51,7 +51,12 @@ export default async function DashboardPage() {
   const aktifTalepTonlari = new Set<string>(["yeni", "ic", "dis", "gorsme", "secim", "kabul"]);
   const toplamTalep = talepler.length;
   const aktifTalep = talepler.filter((t) => aktifTalepTonlari.has(statununTonu(t.durum))).length;
-  const kapaliTalep = talepler.filter((t) => !aktifTalepTonlari.has(statununTonu(t.durum))).length;
+  const basariylaKapandiTalep = talepler.filter((t) => {
+    const hedef = parseInt(t.adet || "0", 10);
+    if (hedef <= 0) return false;
+    return t.adaylar.filter((a) => a.surecDurum?.ton === "karsilandi").length >= hedef;
+  }).length;
+  const kapaliTalep = basariylaKapandiTalep;
   const toplamAday = talepler.reduce((a, t) => a + t.adaylar.length, 0);
   const iseBasanAday = talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ton === "karsilandi").length, 0);
   const bekleyenAday = talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ton !== "karsilandi").length, 0);
