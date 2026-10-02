@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import ExcelIndirButton from "@/components/ExcelIndirButton";
@@ -175,51 +176,31 @@ export default async function DashboardPage() {
       </div>
 
       {/* 6. Kritik Uyarılar */}
-      {(gecikmis.length > 0 || yaklasan.length > 0) && (
-        <div className="space-y-3">
-          {gecikmis.length > 0 && (
-            <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/50 dark:bg-red-950/20">
-              <span className="text-2xl">🔴</span>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-red-800 dark:text-red-300">
-                  {gecikmis.length} talebin deadline&apos;ı geçti
-                </p>
-                <p className="mt-1 text-xs text-red-600 dark:text-red-400">
-                  Müşteri son geçerlilik tarihi geçmiş talepler — acil işlem gereklidir.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {gecikmis.map((t) => (
-                    <span key={t.id} className="inline-flex items-center gap-1 rounded border border-red-300 bg-white px-2 py-0.5 text-xs font-medium text-red-700 dark:border-red-800 dark:bg-zinc-900 dark:text-red-300">
-                      #{t.talepNo} · {t.isBirimi.firma.ad} · {pozisyonYasi(t.olusturulmaTarihi)} gün
-                    </span>
-                  ))}
-                </div>
-              </div>
+      {yaklasan.length > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+          <span className="text-2xl">🟡</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              {yaklasan.length} talebin deadline&apos;ı 7 gün içinde doluyor
+            </p>
+            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+              Yaklaşan son tarihler — acil işlem gereklidir.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {yaklasan.map((t) => {
+                const kalan = Math.ceil((t.deadline!.getTime() - bugun.getTime()) / 86400000);
+                return (
+                  <Link
+                    key={t.id}
+                    href={`/dashboard/talepler/${t.id}`}
+                    className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300 dark:hover:bg-amber-950/40 transition"
+                  >
+                    #{t.talepNo} · {t.isBirimi.firma.ad} · {kalan} gün kaldı
+                  </Link>
+                );
+              })}
             </div>
-          )}
-          {yaklasan.length > 0 && (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
-              <span className="text-2xl">🟡</span>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                  {yaklasan.length} talebin deadline&apos;ı 7 gün içinde doluyor
-                </p>
-                <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                  Yaklaşan son tarihler — takip gereklidir.
-                </p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {yaklasan.map((t) => {
-                    const kalan = Math.ceil((t.deadline!.getTime() - bugun.getTime()) / 86400000);
-                    return (
-                      <span key={t.id} className="inline-flex items-center gap-1 rounded border border-amber-300 bg-white px-2 py-0.5 text-xs font-medium text-amber-700 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300">
-                        #{t.talepNo} · {t.isBirimi.firma.ad} · {kalan} gün kaldı
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
       )}
 
