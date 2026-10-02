@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import ExcelIndirButton from "@/components/ExcelIndirButton";
 import TalepStatuBadge from "@/components/TalepStatuBadge";
-import { isKapaliDurum, pozisyonYasi, deadlineGecti } from "@/lib/domain";
+import { isKapaliDurum, pozisyonYasi, deadlineGecti, statununTonu, isBasariKapatildi } from "@/lib/domain";
 import DashboardCharts from "@/components/DashboardCharts";
 
 export const dynamic = "force-dynamic";
@@ -48,15 +48,13 @@ export default async function DashboardPage() {
   ]);
 
   // KPI
+  const aktifTalepTonlari = new Set<string>(["yeni", "ic", "dis", "gorsme", "secim", "kabul"]);
   const toplamTalep = talepler.length;
-  const aktifTalep = talepler.filter((t) => !isKapaliDurum(t.durum?.ad || "")).length;
-  const kapaliTalep = toplamTalep - aktifTalep;
+  const aktifTalep = talepler.filter((t) => aktifTalepTonlari.has(statununTonu(t.durum))).length;
+  const kapaliTalep = talepler.filter((t) => !aktifTalepTonlari.has(statununTonu(t.durum))).length;
   const toplamAday = talepler.reduce((a, t) => a + t.adaylar.length, 0);
-  const iseBasan = adaylar.filter((a) => a.iseBaslamaTarihi).length;
-  const fillRate = toplamTalep > 0 ? Math.round((iseBasan / (toplamTalep * 5)) * 100) : 0;
-  const ortalamaDolumGun = kapaliTalep > 0
-    ? Math.round(talepler.filter((t) => isKapaliDurum(t.durum?.ad || "")).reduce((a, t) => a + pozisyonYasi(t.olusturulmaTarihi), 0) / kapaliTalep)
-    : 0;
+  const iseBasanAday = talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ton === "karsilandi").length, 0);
+  const bekleyenAday = talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ton !== "karsilandi").length, 0);
 
   // Uyarılar
   const gecikmis = talepler.filter((t) => deadlineGecti(t.durum, t.deadline));
@@ -151,14 +149,13 @@ export default async function DashboardPage() {
       </div>
 
       {/* 1. Üst KPI Kartları */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {[
           { label: "Toplam Talep", deger: toplamTalep, alt: `${aktifTalep} aktif`, renk: "text-blue-600 dark:text-blue-400" },
-          { label: "Aktif Pozisyon", deger: aktifTalep, alt: `${aktifTalep} açık`, renk: "text-amber-600 dark:text-amber-400" },
-          { label: "Kapalı Talep", deger: kapaliTalep, alt: "tamamlandı", renk: "text-emerald-600 dark:text-emerald-400" },
-          { label: "Toplam Aday", deger: toplamAday, alt: `${iseBasan} işe başladı`, renk: "text-purple-600 dark:text-purple-400" },
-          { label: "Fill Rate", deger: `%${fillRate}`, alt: `${ortalamaDolumGun} gün avg.`, renk: "text-cyan-600 dark:text-cyan-400" },
-          { label: "Aday Pipeline", deger: pipelineData.reduce((a, d) => a + d.value, 0), alt: "bekleyen", renk: "text-indigo-600 dark:text-indigo-400" },
+          { label: "Aktif Talep", deger: aktifTalep, alt: "açık pozisyon", renk: "text-amber-600 dark:text-amber-400" },
+          { label: "Kapalı Talep", deger: kapaliTalep, alt: "başarıyla tamamlandı", renk: "text-emerald-600 dark:text-emerald-400" },
+          { label: "Toplam Aday", deger: toplamAday, alt: `${iseBasanAday} işe başladı`, renk: "text-purple-600 dark:text-purple-400" },
+          { label: "Aday Pipeline", deger: bekleyenAday, alt: "bekleyen", renk: "text-indigo-600 dark:text-indigo-400" },
         ].map((s) => (
           <div key={s.label} className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
             <div className="absolute top-0 right-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-gradient-to-br from-blue-500/5 to-transparent dark:from-blue-400/10" />
