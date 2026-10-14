@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import ExcelIndirButton from "@/components/ExcelIndirButton";
@@ -14,41 +13,33 @@ function fmtDateShort(d: Date | null) {
   return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
 }
 
-const getDashboardVeri = unstable_cache(
-  async () => {
-    return Promise.all([
-      prisma.talep.findMany({
-        include: {
-          isBirimi: {
-            select: { ad: true, firmaId: true, firma: { select: { ad: true } } },
-          },
-          durum: { select: { id: true, ad: true, sira: true, ton: true } },
-          adaylar: {
-            select: {
-              id: true,
-              adayAdi: true,
-              surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
-              iseBaslamaTarihi: true,
-            },
-          },
-          olusturan: { select: { name: true } },
-        },
-        orderBy: { talepNo: "desc" },
-      }),
-      prisma.firma.findMany({ orderBy: { ad: "asc" } }),
-      prisma.surecDurumu.findMany({ orderBy: { sira: "asc" } }),
-    ]);
-  },
-  ["dashboard-veri"],
-  { tags: ["dashboard"], revalidate: 30 }
-);
-
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) return null;
 
   const bugun = new Date();
-  const [talepler, firmalar, surecDurumlari] = await getDashboardVeri();
+  const [talepler, firmalar, surecDurumlari] = await Promise.all([
+    prisma.talep.findMany({
+      include: {
+        isBirimi: {
+          select: { ad: true, firmaId: true, firma: { select: { ad: true } } },
+        },
+        durum: { select: { id: true, ad: true, sira: true, ton: true } },
+        adaylar: {
+          select: {
+            id: true,
+            adayAdi: true,
+            surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
+            iseBaslamaTarihi: true,
+          },
+        },
+        olusturan: { select: { name: true } },
+      },
+      orderBy: { talepNo: "desc" },
+    }),
+    prisma.firma.findMany({ orderBy: { ad: "asc" } }),
+    prisma.surecDurumu.findMany({ orderBy: { sira: "asc" } }),
+  ]);
 
   // KPI
   const aktifTalepTonlari = new Set<string>(["yeni", "ic", "dis", "gorsme", "secim", "kabul"]);

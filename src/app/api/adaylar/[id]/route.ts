@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import { talepDurumunuGuncelle } from "@/lib/otomatik-talep";
@@ -58,7 +57,6 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     await talepDurumunuGuncelle(aday.talepId);
   }
 
-  revalidateTag("dashboard", "max");
 
   return NextResponse.json({ ok: true, aday });
 }
@@ -83,7 +81,6 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     await talepDurumunuGuncelle(talepId);
   }
 
-  revalidateTag("dashboard", "max");
 
   return NextResponse.json({ ok: true });
 }

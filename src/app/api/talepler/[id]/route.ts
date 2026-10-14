@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
@@ -32,7 +31,6 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     },
   });
 
-  revalidateTag("dashboard", "max");
 
   return NextResponse.json({ ok: true, talep });
 }
@@ -61,6 +59,5 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
   }
 
   await prisma.talep.delete({ where: { id } });
-  revalidateTag("dashboard", "max");
   return NextResponse.json({ ok: true });
 }

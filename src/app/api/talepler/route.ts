@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 
@@ -95,7 +94,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    revalidateTag("dashboard", "max");
 
     return NextResponse.json({ ok: true, talep }, { status: 201 });
   } catch (err: any) {
