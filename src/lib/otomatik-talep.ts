@@ -7,7 +7,7 @@ import { talepDurumuBelirle } from "./domain";
  * durumuna eşlenir ve eşleşen TalepDurumu id'si yazılır.
  */
 export async function talepDurumunuGuncelle(talepId: string): Promise<void> {
-  const [adaylari, talepDurumlari, varsayilan] = await Promise.all([
+  const [adaylari, talepDurumlari] = await Promise.all([
     prisma.aday.findMany({
       where: { talepId },
       select: {
@@ -17,12 +17,11 @@ export async function talepDurumunuGuncelle(talepId: string): Promise<void> {
     prisma.talepDurumu.findMany({
       select: { id: true, ad: true, sira: true, ton: true },
     }),
-    prisma.talepDurumu.findFirst({
-      where: { ton: "yeni" },
-      orderBy: { sira: "asc" },
-      select: { id: true, ad: true, sira: true, ton: true },
-    }),
   ]);
+
+  const varsayilan = talepDurumlari
+    .filter((t) => t.ton === "yeni")
+    .sort((a, b) => (a.sira ?? 0) - (b.sira ?? 0))[0] ?? null;
 
   const yeniId = talepDurumuBelirle(
     adaylari.map((a) => a.surecDurum),
@@ -30,8 +29,10 @@ export async function talepDurumunuGuncelle(talepId: string): Promise<void> {
     varsayilan
   );
 
-  await prisma.talep.update({
-    where: { id: talepId },
-    data: { durumId: yeniId },
-  });
+  await prisma.$transaction([
+    prisma.talep.update({
+      where: { id: talepId },
+      data: { durumId: yeniId },
+    }),
+  ]);
 }
