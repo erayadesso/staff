@@ -332,7 +332,7 @@ export default async function DashboardPage({
                 showCancelled ? 'translate-x-3' : 'translate-x-0'
               }`} />
             </span>
-            {showCancelled ? 'Tümünü Göster' : 'İptal/Karşılanamadı Gizle'}
+            {showCancelled ? 'İptal/Karşılanamadı Gizle' : 'İptal/Karşılanamadı Göster'}
           </Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

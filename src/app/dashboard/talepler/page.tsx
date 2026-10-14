@@ -81,7 +81,7 @@ export default async function TaleplerPage({
                 showCancelled ? 'translate-x-3' : 'translate-x-0'
               }`} />
             </span>
-            {showCancelled ? 'Tümünü Göster' : 'İptal/Karşılanamadı Gizle'}
+            {showCancelled ? 'İptal/Karşılanamadı Gizle' : 'İptal/Karşılanamadı Göster'}
           </Link>
           <ExcelIndirButton />
           <Link
