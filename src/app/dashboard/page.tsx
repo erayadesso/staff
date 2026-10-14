@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import ExcelIndirButton from "@/components/ExcelIndirButton";
 import TalepStatuBadge from "@/components/TalepStatuBadge";
 import { isKapaliDurum, pozisyonYasi, deadlineGecti, statununTonu, isBasariKapatildi } from "@/lib/domain";
 import DashboardCharts from "@/components/DashboardCharts";
+import LoadingMessage from "@/components/LoadingMessage";
 
 export const dynamic = "force-dynamic";
 
@@ -152,7 +154,8 @@ export default async function DashboardPage({
   }
 
   return (
-    <div className="space-y-8">
+    <Suspense fallback={<LoadingMessage />}>
+      <div className="space-y-8">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -403,6 +406,7 @@ export default async function DashboardPage({
           )}
         </div>
       </section>
-    </div>
+      </div>
+    </Suspense>
   );
 }

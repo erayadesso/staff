@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import TalepFiltreliListesi from "@/components/TalepFiltreliListesi";
@@ -8,6 +9,7 @@ import {
   isBasariKapatildi,
   pozisyonYasi,
 } from "@/lib/domain";
+import LoadingMessage from "@/components/LoadingMessage";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +57,7 @@ export default async function TaleplerPage({
   const talepler = await getFilteredTalepler(showCancelled);
 
   return (
+    <Suspense fallback={<LoadingMessage />}>
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -114,5 +117,6 @@ export default async function TaleplerPage({
         }))}
       />
     </div>
+    </Suspense>
   );
 }
