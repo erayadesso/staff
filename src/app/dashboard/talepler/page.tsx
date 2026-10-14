@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import TalepFiltreliListesi from "@/components/TalepFiltreliListesi";
@@ -12,64 +11,30 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const cacheliTalepler = unstable_cache(
-  async () => {
-    const talepler = await prisma.talep.findMany({
-      include: {
-        isBirimi: {
-          select: {
-            ad: true,
-            firma: { select: { ad: true, logoUrl: true } },
-          },
-        },
-        durum: { select: { id: true, ad: true, sira: true, ton: true } },
-        adaylar: {
-          select: {
-            id: true,
-            adayAdi: true,
-            surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
-            iseBaslamaTarihi: true,
-          },
-        },
-      },
-      orderBy: { talepNo: "desc" },
-    });
-    return {
-      talepler: talepler.map((t) => ({
-        id: t.id,
-        talepNo: t.talepNo,
-        talepSahibi: t.talepSahibi,
-        adayTuru: t.adayTuru,
-        adet: t.adet,
-        durum: t.durum,
-        firmaAd: t.isBirimi.firma.ad,
-        firmaLogo: t.isBirimi.firma.logoUrl,
-        birimAd: t.isBirimi.ad,
-        adaySayisi: t.adaylar.length,
-        adaylar: t.adaylar.map((a) => ({
-          id: a.id,
-          adayAdi: a.adayAdi,
-          surecDurum: a.surecDurum,
-          iseBaslamaTarihi: a.iseBaslamaTarihi
-            ? a.iseBaslamaTarihi.toISOString()
-            : null,
-        })),
-        olusturulmaTarihi: t.olusturulmaTarihi
-          ? t.olusturulmaTarihi.toISOString()
-          : null,
-        deadline: t.deadline ? t.deadline.toISOString() : null,
-      })),
-    };
-  },
-  ["talepler-veri"],
-  { revalidate: 30 }
-);
-
 export default async function TaleplerPage() {
   const user = await getSessionUser();
   if (!user) return null;
 
-  const { talepler } = await cacheliTalepler();
+  const talepler = await prisma.talep.findMany({
+    include: {
+      isBirimi: {
+        select: {
+          ad: true,
+          firma: { select: { ad: true, logoUrl: true } },
+        },
+      },
+      durum: { select: { id: true, ad: true, sira: true, ton: true } },
+      adaylar: {
+        select: {
+          id: true,
+          adayAdi: true,
+          surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
+          iseBaslamaTarihi: true,
+        },
+      },
+    },
+    orderBy: { talepNo: "desc" },
+  });
 
   return (
     <div className="space-y-6">
@@ -100,25 +65,17 @@ export default async function TaleplerPage() {
           talepSahibi: t.talepSahibi,
           adayTuru: t.adayTuru,
           adet: t.adet,
-          durum: t.durum as any,
-          firmaAd: t.firmaAd,
-          firmaLogo: t.firmaLogo,
-          birimAd: t.birimAd,
-          adaylar: t.adaylar.map((a) => ({
-            id: a.id,
-            adayAdi: a.adayAdi,
-            surecDurum: a.surecDurum as any,
-            iseBaslamaTarihi: a.iseBaslamaTarihi ? new Date(a.iseBaslamaTarihi) : null,
-          })),
-          adaySayisi: t.adaySayisi,
-          olusturulmaTarihi: new Date(t.olusturulmaTarihi!),
-          deadline: t.deadline ? new Date(t.deadline) : null,
-          yasi: pozisyonYasi(t.olusturulmaTarihi ? new Date(t.olusturulmaTarihi) : new Date()),
-          deadlineGectiMi: deadlineGecti(t.durum as any, t.deadline ? new Date(t.deadline) : null),
-          basariylaKapandi: isBasariKapatildi(
-            t.adaylar.map((a) => ({ surecDurum: a.surecDurum })),
-            t.adet
-          ),
+          durum: t.durum,
+          firmaAd: t.isBirimi.firma.ad,
+          firmaLogo: t.isBirimi.firma.logoUrl,
+          birimAd: t.isBirimi.ad,
+          adaylar: t.adaylar,
+          adaySayisi: t.adaylar.length,
+          olusturulmaTarihi: t.olusturulmaTarihi,
+          deadline: t.deadline,
+          yasi: pozisyonYasi(t.olusturulmaTarihi),
+          deadlineGectiMi: deadlineGecti(t.durum, t.deadline),
+          basariylaKapandi: isBasariKapatildi(t.adaylar, t.adet),
         }))}
       />
     </div>
