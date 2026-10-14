@@ -8,33 +8,54 @@ import DashboardCharts from "@/components/DashboardCharts";
 
 export const dynamic = "force-dynamic";
 
+async function getFilteredTalepler(showCancelled: boolean) {
+  const aktifTalepTonlari = ["yeni", "ic", "dis", "gorsme", "secim", "kabul", "karsilandi"];
+  return prisma.talep.findMany({
+    where: showCancelled ? undefined : {
+      durum: {
+        ton: { in: aktifTalepTonlari },
+      },
+    },
+    include: {
+      isBirimi: {
+        select: {
+          ad: true,
+          firmaId: true,
+          firma: { select: { ad: true, logoUrl: true } },
+        },
+      },
+      durum: { select: { id: true, ad: true, sira: true, ton: true } },
+      adaylar: {
+        select: {
+          id: true,
+          adayAdi: true,
+          surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
+        },
+      },
+    },
+    orderBy: { talepNo: "desc" },
+  });
+}
+
 function fmtDateShort(d: Date | null) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ showCancelled?: string }>;
+}) {
   const user = await getSessionUser();
   if (!user) return null;
 
+  const params = await searchParams;
+  const showCancelled = params.showCancelled === 'true';
+
   const bugun = new Date();
   const [talepler, firmalar, surecDurumlari] = await Promise.all([
-    prisma.talep.findMany({
-      include: {
-        isBirimi: {
-          select: { ad: true, firmaId: true, firma: { select: { ad: true } } },
-        },
-        durum: { select: { id: true, ad: true, sira: true, ton: true } },
-        adaylar: {
-          select: {
-            id: true,
-            adayAdi: true,
-            surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
-          },
-        },
-      },
-      orderBy: { talepNo: "desc" },
-    }),
+    getFilteredTalepler(showCancelled),
     prisma.firma.findMany({ orderBy: { ad: "asc" } }),
     prisma.surecDurumu.findMany({ orderBy: { sira: "asc" } }),
   ]);
@@ -296,11 +317,26 @@ export default async function DashboardPage() {
               Tüm açık talepler, aday durumu ve ilerleme
             </p>
           </div>
+          <Link
+            href={`/dashboard?showCancelled=${!showCancelled}`}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
+              showCancelled
+                ? 'bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300'
+                : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
+            }`}
+          >
+            <span className={`inline-block h-4 w-7 rounded-full p-0.5 transition-colors ${
+              showCancelled ? 'bg-blue-500' : 'bg-zinc-400'
+            }`}>
+              <span className={`block h-3 w-3 rounded-full bg-white transition-transform ${
+                showCancelled ? 'translate-x-3' : 'translate-x-0'
+              }`} />
+            </span>
+            {showCancelled ? 'Tümünü Göster' : 'İptal/Karşılanamadı Gizle'}
+          </Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {talepler
-            .filter((t) => !isKapaliDurum(t.durum?.ad || ""))
-            .map((t) => {
+          {talepler.map((t) => {
               const hedef = parseInt(t.adet || "0", 10);
               const prog = hedef > 0 ? getProgressBar(Math.min(Math.round((t.adaylar.length / hedef) * 100), 100)) : null;
               return (
