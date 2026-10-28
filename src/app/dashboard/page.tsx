@@ -98,54 +98,61 @@ export default async function DashboardPage() {
     renk: f.doluluk >= 80 ? "#10b981" : f.doluluk >= 50 ? "#f59e0b" : "#ef4444",
   }));
 
-  // Trend hesaplama yardımcı fonksiyon
+  // Trend hesaplama — hafta bazlı, soldan sağa: eski → yeni
   function hesaplaTrend(gunSayisi: number) {
-    if (gunSayisi === -1) {
-      // Tümü — tüm veriyi haftalık grupla
-      if (requests.length === 0) return [];
-      const ilkTarih = new Date(Math.min(...requests.map((r) => new Date(r.createdAt).getTime())));
-      const gunFark = Math.ceil((bugun.getTime() - ilkTarih.getTime()) / 86400000);
-      const haftaSayisi = Math.ceil(gunFark / 7);
-      return Array.from({ length: Math.min(haftaSayisi, 52) }, (_, i) => {
-        const baslangic = new Date(bugun.getTime() - (gunFark - i * 7) * 86400000);
-        const bitis = new Date(bugun.getTime() - (gunFark - (i + 1) * 7) * 86400000);
-        const olusturan = requests.filter((r) => {
-          const d = new Date(r.createdAt);
-          return d >= bitis && d < baslangic;
-        }).length;
-        const kapatilan = requests.filter((r) => {
-          if (!isKapaliDurum(r.status)) return false;
-          const d = new Date(r.createdAt);
-          return d >= bitis && d < baslangic;
-        }).length;
-        const gun = baslangic.getDate();
-        const ay = baslangic.toLocaleString("tr-TR", { month: "short" });
-        return { hafta: `${gun} ${ay}`, olusturan, kapatilan };
-      }).reverse();
-    }
-    const gunler = Array.from({ length: gunSayisi }, (_, i) => i + 1);
-    return gunler.map((_, i) => {
+    const haftaAdet = Math.ceil(gunSayisi / 7);
+    const result: { hafta: string; olusturan: number; kapatilan: number }[] = [];
+    for (let i = 0; i < haftaAdet; i++) {
+      // baslangic = daha eski, bitis = daha yeni
       const baslangic = new Date(bugun.getTime() - (gunSayisi - i * 7) * 86400000);
       const bitis = new Date(bugun.getTime() - (gunSayisi - (i + 1) * 7) * 86400000);
       const olusturan = requests.filter((r) => {
         const d = new Date(r.createdAt);
-        return d >= bitis && d < baslangic;
+        return d >= baslangic && d < bitis;
       }).length;
       const kapatilan = requests.filter((r) => {
         if (!isKapaliDurum(r.status)) return false;
         const d = new Date(r.createdAt);
-        return d >= bitis && d < baslangic;
+        return d >= baslangic && d < bitis;
       }).length;
       const gun = baslangic.getDate();
       const ay = baslangic.toLocaleString("tr-TR", { month: "short" });
-      return { hafta: `${gun} ${ay}`, olusturan, kapatilan };
-    });
+      result.push({ hafta: `${gun} ${ay}`, olusturan, kapatilan });
+    }
+    return result;
   }
 
   const trendData30 = hesaplaTrend(30);
   const trendData90 = hesaplaTrend(90);
   const trendData180 = hesaplaTrend(180);
-  const trendDataTumu = hesaplaTrend(-1);
+
+  // Tümü — tüm veriyi haftalık grupla
+  function hesaplaTrendTumu() {
+    if (requests.length === 0) return [];
+    const ilkTarih = new Date(Math.min(...requests.map((r) => new Date(r.createdAt).getTime())));
+    const gunFark = Math.ceil((bugun.getTime() - ilkTarih.getTime()) / 86400000);
+    const haftaSayisi = Math.min(Math.ceil(gunFark / 7), 104); // max 2 yıl
+    const result: { hafta: string; olusturan: number; kapatilan: number }[] = [];
+    for (let i = 0; i < haftaSayisi; i++) {
+      const baslangic = new Date(bugun.getTime() - (gunFark - i * 7) * 86400000);
+      const bitis = new Date(bugun.getTime() - (gunFark - (i + 1) * 7) * 86400000);
+      const olusturan = requests.filter((r) => {
+        const d = new Date(r.createdAt);
+        return d >= baslangic && d < bitis;
+      }).length;
+      const kapatilan = requests.filter((r) => {
+        if (!isKapaliDurum(r.status)) return false;
+        const d = new Date(r.createdAt);
+        return d >= baslangic && d < bitis;
+      }).length;
+      const gun = baslangic.getDate();
+      const ay = baslangic.toLocaleString("tr-TR", { month: "short" });
+      result.push({ hafta: `${gun} ${ay}`, olusturan, kapatilan });
+    }
+    return result;
+  }
+
+  const trendDataTumu = hesaplaTrendTumu();
 
   const pipelineData = processStatuses.map((s) => ({
     name: s.name.length > 20 ? s.name.slice(0, 18) + "…" : s.name,
