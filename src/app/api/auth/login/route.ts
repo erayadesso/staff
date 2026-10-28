@@ -1,11 +1,40 @@
 import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { createSession, sessionCookieName, sessionCookieMaxAge } from "@/lib/auth";
+import {
+  createSession,
+  sessionCookieName,
+  sessionCookieMaxAge,
+  generateRememberToken,
+  rememberCookieName,
+  rememberCookieMaxAge,
+} from "@/lib/auth";
 import { isAdessoEmail } from "@/lib/domain";
 
+/** IP bazlı basit rate limiter (in-memory, tek instance için yeterli) */
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 10; // 10 deneme
+const RATE_WINDOW_MS = 5 * 60 * 1000; // 5 dakika
+
+function checkLoginRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = loginAttempts.get(ip);
+
+  if (!record || now > record.resetAt) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true; // İzin ver
+  }
+
+  if (record.count >= RATE_LIMIT_MAX) {
+    return false; // Eşiği aştı
+  }
+
+  record.count += 1;
+  return true;
+}
+
 export async function POST(request: NextRequest) {
-  let body: { email?: string; password?: string };
+  let body: { email?: string; password?: string; rememberMe?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -14,6 +43,7 @@ export async function POST(request: NextRequest) {
 
   const email = body.email?.trim().toLowerCase() ?? "";
   const password = body.password ?? "";
+  const rememberMe = body.rememberMe === true;
 
   if (!email || !password) {
     return NextResponse.json(
@@ -26,6 +56,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Yalnızca adesso e-posta adresiyle giriş yapılabilir." },
       { status: 401 }
+    );
+  }
+
+  // Rate limiting (IP bazlı)
+  const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+  if (!checkLoginRateLimit(ip)) {
+    return NextResponse.json(
+      { error: "Çok fazla deneme. Lütfen 5 dakika sonra tekrar deneyin." },
+      { status: 429 }
     );
   }
 
@@ -45,9 +84,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Session JWT oluştur
   const token = await createSession({ email: user.email, role: user.role });
 
   const response = NextResponse.json({ ok: true });
+
+  // Normal session cookie (12 saat)
   response.cookies.set(sessionCookieName, token, {
     httpOnly: true,
     sameSite: "lax",
@@ -55,6 +97,38 @@ export async function POST(request: NextRequest) {
     path: "/",
     maxAge: sessionCookieMaxAge,
   });
+
+  // Remember token cookie (30 gün)
+  if (rememberMe) {
+    const plainToken = generateRememberToken();
+    const hashedToken = await bcrypt.hash(plainToken, user.id);
+
+    // Eski token'ı temizle, yenisini kaydet
+    await prisma.user.update({
+      where: { email },
+      data: {
+        rememberToken: hashedToken,
+        tokenExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 gün
+      },
+    });
+
+    response.cookies.set(rememberCookieName, plainToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: rememberCookieMaxAge,
+    });
+  } else {
+    // Remember token checked değilse temizle
+    await prisma.user.update({
+      where: { email },
+      data: {
+        rememberToken: null,
+        tokenExpiry: null,
+      },
+    });
+  }
 
   return response;
 }
