@@ -103,9 +103,10 @@ export default async function DashboardPage() {
     const haftaAdet = Math.ceil(gunSayisi / 7);
     const result: { hafta: string; olusturan: number; kapatilan: number }[] = [];
     for (let i = 0; i < haftaAdet; i++) {
-      // baslangic = daha eski, bitis = daha yeni
       const baslangic = new Date(bugun.getTime() - (gunSayisi - i * 7) * 86400000);
-      const bitis = new Date(bugun.getTime() - (gunSayisi - (i + 1) * 7) * 86400000);
+      // Son haftanın bitis'i bugünden ileriye gitmesin
+      const bitisMs = bugun.getTime() - (gunSayisi - (i + 1) * 7) * 86400000;
+      const bitis = new Date(Math.min(bitisMs, bugun.getTime()));
       const olusturan = requests.filter((r) => {
         const d = new Date(r.createdAt);
         return d >= baslangic && d < bitis;
@@ -135,7 +136,8 @@ export default async function DashboardPage() {
     const result: { hafta: string; olusturan: number; kapatilan: number }[] = [];
     for (let i = 0; i < haftaSayisi; i++) {
       const baslangic = new Date(bugun.getTime() - (gunFark - i * 7) * 86400000);
-      const bitis = new Date(bugun.getTime() - (gunFark - (i + 1) * 7) * 86400000);
+      const bitisMs = bugun.getTime() - (gunFark - (i + 1) * 7) * 86400000;
+      const bitis = new Date(Math.min(bitisMs, bugun.getTime()));
       const olusturan = requests.filter((r) => {
         const d = new Date(r.createdAt);
         return d >= baslangic && d < bitis;
