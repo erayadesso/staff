@@ -53,10 +53,12 @@ model Request {
   departmentId      String
   createdById       String?
   adessoDuration    DateTime?
+  domainId          String?
   candidates        Candidate[]
   department        Department  @relation(fields: [departmentId], references: [id])
   createdBy         User?       @relation("RequestCreatedBy", fields: [createdById], references: [id])
   status            RequestStatus? @relation(fields: [statusId], references: [id])
+  domain            Domain?     @relation(fields: [domainId], references: [id])
 }
 
 model Candidate {
@@ -89,4 +91,16 @@ model ProcessStatus {
   order  Int    @default(0)
   ton    String @default("varsayilan")
   candidates Candidate[]
+}
+
+model Domain {
+  id          String   @id @default(cuid())
+  name        String
+  parentId    String?
+  parent      Domain?  @relation("DomainHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children    Domain[] @relation("DomainHierarchy")
+  requests    Request[]
+  createdAt   DateTime @default(now())
+
+  @@index([parentId])
 }

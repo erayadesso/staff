@@ -48,6 +48,12 @@ export default async function DashboardLayout({
               {user?.role === "ADMIN" && (
                 <>
                   <Link
+                    href="/dashboard/domains"
+                    className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                  >
+                    Yetkinlik Merkezleri
+                  </Link>
+                  <Link
                     href="/dashboard/users"
                     className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                   >
