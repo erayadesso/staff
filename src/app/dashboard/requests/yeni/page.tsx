@@ -29,7 +29,7 @@ export default async function YeniTalepPage() {
     <div className="space-y-6">
       <div>
         <Link
-          href="/dashboard/talepler"
+          href="/dashboard/requests"
           className="text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
         >
           ← Talepler

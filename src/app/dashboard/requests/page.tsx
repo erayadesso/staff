@@ -70,7 +70,7 @@ export default async function TaleplerPage({
         </div>
         <div className="flex items-center gap-2">
           <Link
-            href={`/dashboard/talepler?showCancelled=${!showCancelled}`}
+            href={`/dashboard/requests?showCancelled=${!showCancelled}`}
             className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
               showCancelled
                 ? 'bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300'
@@ -88,7 +88,7 @@ export default async function TaleplerPage({
           </Link>
           <ExcelIndirButton />
           <Link
-            href="/dashboard/talepler/yeni"
+            href="/dashboard/requests/new"
             className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
             + Yeni Talep

@@ -25,7 +25,7 @@ export default function AdayBagla({
     if (!requestId) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/adaylar/${candidateId}/bagla`, {
+      const res = await fetch(`/api/candidates/${candidateId}/bind`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ request_id: requestId }),

@@ -7,9 +7,9 @@ export const dynamic = "force-dynamic";
 
 const NAV = [
   { href: "/dashboard", label: "Özet" },
-  { href: "/dashboard/talepler", label: "Talepler" },
-  { href: "/dashboard/adaylar", label: "Adaylar" },
-  { href: "/dashboard/firmalar", label: "Firmalar" },
+  { href: "/dashboard/requests", label: "Talepler" },
+  { href: "/dashboard/candidates", label: "Adaylar" },
+  { href: "/dashboard/companies", label: "Firmalar" },
 ];
 
 export default async function DashboardLayout({
@@ -48,13 +48,13 @@ export default async function DashboardLayout({
               {user?.role === "ADMIN" && (
                 <>
                   <Link
-                    href="/dashboard/kullanicilar"
+                    href="/dashboard/users"
                     className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                   >
                     Kullanıcılar
                   </Link>
                   <Link
-                    href="/dashboard/statuler"
+                    href="/dashboard/statuses"
                     className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                   >
                     Statüler

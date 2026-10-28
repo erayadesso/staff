@@ -45,7 +45,7 @@ export default function StatuYonetimi({
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/statuler", {
+      const res = await fetch("/api/statuses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tip, ad: yeniAd, ton: yeniTon }),
@@ -67,7 +67,7 @@ export default function StatuYonetimi({
 
   async function guncelle(id: string, ad: string) {
     setError(null);
-    const res = await fetch("/api/statuler", {
+    const res = await fetch("/api/statuses", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tip, id, ad }),
@@ -84,7 +84,7 @@ export default function StatuYonetimi({
   async function sil(id: string, ad: string) {
     if (!confirm(`"${ad}" statüsü silinsin mi?`)) return;
     setError(null);
-    const res = await fetch("/api/statuler", {
+    const res = await fetch("/api/statuses", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tip, id }),

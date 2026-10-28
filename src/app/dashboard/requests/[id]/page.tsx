@@ -57,7 +57,7 @@ export default async function TalepDetayPage({
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           Talep bulunamadı.{" "}
           <Link
-            href="/dashboard/talepler"
+            href="/dashboard/requests"
             className="text-zinc-900 underline dark:text-zinc-100"
           >
             Taleplere dön
@@ -91,7 +91,7 @@ export default async function TalepDetayPage({
     <div className="space-y-6">
       <div>
         <Link
-          href="/dashboard/talepler"
+          href="/dashboard/requests"
           className="text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
         >
           ← Talepler

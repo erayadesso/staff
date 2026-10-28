@@ -56,7 +56,7 @@ export default function FirmalarListesi({
   async function firmaGuncelle(id: string, ad: string) {
     if (!ad.trim()) return;
     try {
-      const res = await fetch(`/api/firmalar/${id}`, {
+      const res = await fetch(`/api/companies/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ad }),
@@ -80,7 +80,7 @@ export default function FirmalarListesi({
   async function logoKaydet(id: string) {
     if (!logoUrl.trim()) return;
     try {
-      const res = await fetch(`/api/firmalar/${id}`, {
+      const res = await fetch(`/api/companies/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logoUrl: logoUrl.trim() }),
@@ -104,7 +104,7 @@ export default function FirmalarListesi({
 
   async function logoKaldir(id: string) {
     try {
-      const res = await fetch(`/api/firmalar/${id}`, {
+      const res = await fetch(`/api/companies/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ logoUrl: "" }),
@@ -132,7 +132,7 @@ export default function FirmalarListesi({
     );
     if (!onay) return;
     try {
-      const res = await fetch(`/api/firmalar/${id}`, {
+      const res = await fetch(`/api/companies/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -153,7 +153,7 @@ export default function FirmalarListesi({
   async function birimGuncelle(id: string, ad: string) {
     if (!ad.trim()) return;
     try {
-      const res = await fetch(`/api/is-birimleri/${id}`, {
+      const res = await fetch(`/api/departments/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ad }),
@@ -180,7 +180,7 @@ export default function FirmalarListesi({
     );
     if (!onay) return;
     try {
-      const res = await fetch(`/api/is-birimleri/${birimId}`, {
+      const res = await fetch(`/api/departments/${birimId}`, {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -201,7 +201,7 @@ export default function FirmalarListesi({
   async function yeniBirimEkle(companyId: string) {
     if (!yeniBirimAdi.trim()) return;
     try {
-      const res = await fetch(`/api/is-birimleri`, {
+      const res = await fetch(`/api/departments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ad: yeniBirimAdi, firmaId: companyId }),

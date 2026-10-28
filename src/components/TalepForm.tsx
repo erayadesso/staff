@@ -47,7 +47,7 @@ export default function TalepForm({
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/talepler", {
+      const res = await fetch("/api/requests", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -67,7 +67,7 @@ export default function TalepForm({
         setError(data.error ?? "Talep oluşturulamadı.");
         return;
       }
-      router.push(`/dashboard/talepler/${data.request.id}`);
+      router.push(`/dashboard/requests/${data.request.id}`);
       router.refresh();
     } catch {
       setError("Bir hata oluştu.");

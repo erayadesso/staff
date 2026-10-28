@@ -11,7 +11,7 @@ interface User {
   isActive: boolean;
 }
 
-export default function KullanicilarContent({ users }: { users: User[] }) {
+export default function UsersContent({ users }: { users: User[] }) {
   const [seciliKullanici, setSeciliKullanici] = useState<User | null>(null);
   const [yeniSifre, setYeniSifre] = useState("");
   const [formAcik, setFormAcik] = useState(false);
@@ -29,7 +29,7 @@ export default function KullanicilarContent({ users }: { users: User[] }) {
       return;
     }
     try {
-      const res = await fetch(`/api/kullanicilar/${seciliKullanici.id}`, {
+      const res = await fetch(`/api/users/${seciliKullanici.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sifre: yeniSifre }),
@@ -50,7 +50,7 @@ export default function KullanicilarContent({ users }: { users: User[] }) {
 
   const kullaniciSil = async (id: string) => {
     try {
-      const res = await fetch(`/api/kullanicilar/${id}`, {
+      const res = await fetch(`/api/users/${id}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -73,7 +73,7 @@ export default function KullanicilarContent({ users }: { users: User[] }) {
     }
     setOlusturYukle(true);
     try {
-      const res = await fetch("/api/kullanicilar", {
+      const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

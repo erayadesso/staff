@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import Link from "next/link";
-import KullanicilarContent from "./KullanicilarContent";
+import UsersContent from "./UsersContent";
 
 export const dynamic = "force-dynamic";
 
@@ -35,5 +35,5 @@ export default async function KullanicilarPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  return <KullanicilarContent users={users} />;
+  return <UsersContent users={users} />;
 }

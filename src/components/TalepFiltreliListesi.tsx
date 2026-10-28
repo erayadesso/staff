@@ -379,7 +379,7 @@ export default function TalepFiltreliListesi({
             return (
               <Link
                 key={t.id}
-                href={`/dashboard/talepler/${t.id}`}
+                href={`/dashboard/requests/${t.id}`}
                 className="group block rounded-xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -558,7 +558,7 @@ export default function TalepFiltreliListesi({
                   >
                     <td className="px-4 py-3">
                       <Link
-                        href={`/dashboard/talepler/${t.id}`}
+                        href={`/dashboard/requests/${t.id}`}
                         className="font-mono text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                       >
                         #{t.requestNo}

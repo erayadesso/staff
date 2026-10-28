@@ -96,7 +96,7 @@ export default function AdayListesi({
   async function handleStatusChange(id: string, yeniDurum: string) {
     setSavingStatus(id);
     try {
-      await fetch(`/api/adaylar/${id}`, {
+      await fetch(`/api/candidates/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ processStatusId: yeniDurum }),
@@ -115,7 +115,7 @@ export default function AdayListesi({
     try {
       const d = formData[id];
       const fullCost = d.cost.trim() ? `${d.currency}${d.cost.trim()}` : null;
-      await fetch(`/api/adaylar/${id}`, {
+      await fetch(`/api/candidates/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -142,7 +142,7 @@ export default function AdayListesi({
     setError(null);
     try {
       const fullCost = newForm.cost.trim() ? `${newForm.currency}${newForm.cost.trim()}` : null;
-      const res = await fetch("/api/adaylar", {
+      const res = await fetch("/api/candidates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -173,7 +173,7 @@ export default function AdayListesi({
 
   async function handleDelete(candidate: Candidate) {
     if (!confirm(`${candidate.candidateName} adayı silinsin mi?`)) return;
-    await fetch(`/api/adaylar/${candidate.id}`, { method: "DELETE" });
+    await fetch(`/api/candidates/${candidate.id}`, { method: "DELETE" });
     router.refresh();
   }
 

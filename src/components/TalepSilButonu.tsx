@@ -16,7 +16,7 @@ export default function TalepSilButonu({
       onClick={async () => {
         if (!confirm(`Talep #${requestNo} silinecek. Onaylıyor musunuz?`))
           return;
-        const res = await fetch(`/api/talepler/${requestId}`, {
+        const res = await fetch(`/api/requests/${requestId}`, {
           method: "DELETE",
         });
         if (!res.ok) {
@@ -24,7 +24,7 @@ export default function TalepSilButonu({
           alert(d.error ?? "Talep silinemedi.");
         } else {
           alert("Talep silindi.");
-          router.push("/dashboard/talepler");
+          router.push("/dashboard/requests");
         }
       }}
       className="rounded-lg border border-red-300 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100 dark:border-red-800 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"

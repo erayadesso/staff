@@ -30,7 +30,7 @@ export default function AdayForm({
     try {
       const value = adayCost.trim();
       const fullCost = value ? `${currency}${value}` : null;
-      const res = await fetch("/api/adaylar", {
+      const res = await fetch("/api/candidates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

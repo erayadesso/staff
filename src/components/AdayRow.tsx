@@ -87,7 +87,7 @@ export default function AdayRow({
     setSaving(true);
     try {
       const fullCost = rawCost.trim() ? `${currency}${rawCost.trim()}` : null;
-      await fetch(`/api/adaylar/${aday.id}`, {
+      await fetch(`/api/candidates/${aday.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -123,7 +123,7 @@ export default function AdayRow({
 
   async function handleDelete() {
     if (!confirm(`${aday.adayAdi} adayı silinsin mi?`)) return;
-    await fetch(`/api/adaylar/${aday.id}`, { method: "DELETE" });
+    await fetch(`/api/candidates/${aday.id}`, { method: "DELETE" });
     router.refresh();
   }
 

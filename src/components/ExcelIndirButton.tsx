@@ -8,7 +8,7 @@ export default function ExcelIndirButton() {
   async function handleDownload() {
     setDownloading(true);
     try {
-      const res = await fetch("/api/export/talepler");
+      const res = await fetch("/api/export/requests");
       if (!res.ok) return;
       const blob = await res.blob();
       const header = res.headers.get("Content-Disposition") ?? "";

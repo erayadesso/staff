@@ -3,21 +3,14 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import ExcelIndirButton from "@/components/ExcelIndirButton";
-import TalepStatuBadge from "@/components/TalepStatuBadge";
-import { isKapaliDurum, pozisyonYasi, deadlineGecti, statununTonu, isBasariKapatildi } from "@/lib/domain";
+import { isKapaliDurum, deadlineGecti, statununTonu } from "@/lib/domain";
 import DashboardCharts from "@/components/DashboardCharts";
 import LoadingMessage from "@/components/LoadingMessage";
 
 export const dynamic = "force-dynamic";
 
-async function getFilteredRequests(showCancelled: boolean) {
-  const aktifTalepTonlari = ["yeni", "ic", "dis", "gorsme", "secim", "kabul", "karsilandi"];
+async function getAllRequests() {
   return prisma.request.findMany({
-    where: showCancelled ? undefined : {
-      status: {
-        ton: { in: aktifTalepTonlari },
-      },
-    },
     include: {
       department: {
         select: {
@@ -39,25 +32,13 @@ async function getFilteredRequests(showCancelled: boolean) {
   });
 }
 
-function fmtDateShort(d: Date | null) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
-}
-
-export default async function DashboardPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ showCancelled?: string }>;
-}) {
+export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) return null;
 
-  const params = await searchParams;
-  const showCancelled = params.showCancelled === 'true';
-
   const bugun = new Date();
   const [requests, companies, processStatuses] = await Promise.all([
-    getFilteredRequests(showCancelled),
+    getAllRequests(),
     prisma.company.findMany({ orderBy: { name: "asc" } }),
     prisma.processStatus.findMany({ orderBy: { order: "asc" } }),
   ]);
@@ -146,8 +127,6 @@ export default async function DashboardPage({
     value: requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.name === s.name).length, 0),
   })).filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
 
-  const PIE_COLORS = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6"];
-
   function getProgressBar(pct: number) {
     const renk = pct >= 100 ? "bg-emerald-500" : pct >= 50 ? "bg-blue-500" : pct >= 25 ? "bg-amber-500" : "bg-zinc-500";
     return { pct, renk };
@@ -210,7 +189,7 @@ export default async function DashboardPage({
                 return (
                   <Link
                     key={r.id}
-                    href={`/dashboard/talepler/${r.id}`}
+                    href={`/dashboard/requests/${r.id}`}
                     className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300 dark:hover:bg-amber-950/40 transition"
                   >
                     #{r.requestNo} · {r.department.name} · {kalan} gün kaldı
@@ -306,104 +285,6 @@ export default async function DashboardPage({
               )}
             </tbody>
           </table>
-        </div>
-      </section>
-
-      {/* Detaylı Talep Listesi */}
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-              Aktif Talepler — Detay
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Tüm açık talepler, aday durumu ve ilerleme
-            </p>
-          </div>
-          <Link
-            href={`/dashboard?showCancelled=${!showCancelled}`}
-            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-              showCancelled
-                ? 'bg-zinc-900 text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300'
-                : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700'
-            }`}
-          >
-            <span className={`inline-block h-4 w-7 rounded-full p-0.5 transition-colors ${
-              showCancelled ? 'bg-blue-500' : 'bg-zinc-400'
-            }`}>
-              <span className={`block h-3 w-3 rounded-full bg-white transition-transform ${
-                showCancelled ? 'translate-x-3' : 'translate-x-0'
-              }`} />
-            </span>
-            {showCancelled ? 'İptal/Karşılanamadı Gizle' : 'İptal/Karşılanamadı Göster'}
-          </Link>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {requests.map((r) => {
-              const hedef = parseInt(r.quantity || "0", 10);
-              const prog = hedef > 0 ? getProgressBar(Math.min(Math.round((r.candidates.length / hedef) * 100), 100)) : null;
-              return (
-                <div key={r.id} className="group overflow-hidden rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">#{r.requestNo}</span>
-                        <TalepStatuBadge durum={r.status} />
-                        {deadlineGecti(r.status, r.deadline) && (
-                          <span className="inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-800" title="Deadline geçti">
-                            ⚠ geçti
-                          </span>
-                        )}
-                      </div>
-                      <h3 className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{r.candidateType}</h3>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{r.department.company.name} · {r.department.name}</p>
-                    </div>
-                    <span className={`shrink-0 text-[10px] font-medium ${pozisyonYasi(r.createdAt) > 30 ? "text-red-600 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}>
-                      {pozisyonYasi(r.createdAt)} gün
-                    </span>
-                  </div>
-
-                  {prog && hedef > 0 && (
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                        <span>{r.candidates.length}/{hedef} aday</span>
-                        <span>%{prog.pct}</span>
-                      </div>
-                      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                        <div className={`h-full rounded-full ${prog.renk}`} style={{ width: `${prog.pct}%` }} />
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                    <span>{r.requestOwner}</span>
-                    {r.deadline && (
-                      <span className={deadlineGecti(r.status, r.deadline) ? "text-red-600 dark:text-red-400" : ""}>
-                        DL: {fmtDateShort(r.deadline)}{deadlineGecti(r.status, r.deadline) && " ⚠"}
-                      </span>
-                    )}
-                  </div>
-
-                  {r.candidates.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {r.candidates.slice(0, 4).map((a) => (
-                        <span key={a.id} className="max-w-[100px] truncate rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" title={`${a.candidateName}${a.processStatus?.name ? ` — ${a.processStatus.name}` : ""}`}>
-                          {a.candidateName.split(" ")[0]}{a.processStatus?.name && <span className="text-zinc-400">·</span>}
-                        </span>
-                      ))}
-                      {r.candidates.length > 4 && <span className="text-[10px] text-zinc-400">+{r.candidates.length - 4}</span>}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          {aktifTalep === 0 && (
-            <div className="col-span-full rounded-xl border border-zinc-200 bg-white p-12 text-center dark:border-zinc-800 dark:bg-zinc-950">
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                Aktif talep bulunmuyor. Tüm talepler başarıyla kapandı.
-              </p>
-            </div>
-          )}
         </div>
       </section>
       </div>

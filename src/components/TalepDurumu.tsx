@@ -23,7 +23,7 @@ export default function TalepDurumu({
   async function save() {
     setSaving(true);
     try {
-      await fetch(`/api/talepler/${requestId}`, {
+      await fetch(`/api/requests/${requestId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ statusId: durum, currentNote: not }),

@@ -16,7 +16,7 @@ export default function FirmaEkleForm() {
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch("/api/firmalar", {
+      const res = await fetch("/api/companies", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ firmaAd, birimAd: birimAd || undefined }),
