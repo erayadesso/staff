@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 interface Statu {
   id: string;
-  ad: string;
+  name: string;
   ton?: string | null;
 }
 
@@ -135,7 +135,7 @@ export default function StatuYonetimi({
               className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
             >
               <span className="flex flex-wrap items-center gap-2">
-                <span className="text-zinc-800 dark:text-zinc-200">{s.ad}</span>
+                <span className="text-zinc-800 dark:text-zinc-200">{s.name}</span>
                 {s.ton && (
                   <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                     {s.ton}
@@ -146,14 +146,14 @@ export default function StatuYonetimi({
                 <button
                   onClick={() => {
                     setDuzenlenen(s.id);
-                    setDuzenlemeAdi(s.ad);
+                    setDuzenlemeAdi(s.name);
                   }}
                   className="rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800"
                 >
                   Düzenle
                 </button>
                 <button
-                  onClick={() => sil(s.id, s.ad)}
+                  onClick={() => sil(s.id, s.name)}
                   className="rounded px-2 py-1 text-xs text-zinc-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
                 >
                   Sil

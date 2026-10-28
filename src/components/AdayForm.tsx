@@ -123,7 +123,7 @@ export default function AdayForm({
             <option value="">Seçiniz</option>
             {surecDurumlari.map((d) => (
               <option key={d.id} value={d.id ?? ""}>
-                {d.ad}
+                {d.name}
               </option>
             ))}
           </select>

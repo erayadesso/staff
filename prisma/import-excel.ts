@@ -22,24 +22,24 @@ function excelSerialToDate(serial: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Excel'deki statü adını TalepDurumu id'sine eşler; bulamazsa "yeni" tona düşer. */
+/** Excel'deki statü adını RequestStatus id'sine eşler; bulamazsa "yeni" tona düşer. */
 async function talepDurumId(ad: string): Promise<string | null> {
   if (ad) {
-    const d = await prisma.talepDurumu.findUnique({ where: { ad } });
+    const d = await prisma.requestStatus.findUnique({ where: { name: ad } });
     if (d) return d.id;
   }
-  const def = await prisma.talepDurumu.findFirst({
+  const def = await prisma.requestStatus.findFirst({
     where: { ton: "yeni" },
-    orderBy: { sira: "asc" },
+    orderBy: { order: "asc" },
     select: { id: true },
   });
   return def?.id ?? null;
 }
 
-/** Excel'deki statü adını SurecDurumu id'sine eşler; yoksa null döner. */
+/** Excel'deki statü adını ProcessStatus id'sine eşler; yoksa null döner. */
 async function surecDurumId(ad: string | null): Promise<string | null> {
   if (!ad) return null;
-  const d = await prisma.surecDurumu.findUnique({ where: { ad } });
+  const d = await prisma.processStatus.findUnique({ where: { name: ad } });
   return d?.id ?? null;
 }
 
@@ -91,8 +91,8 @@ async function main() {
     }
 
     // Var olan talep no'yu atla (idempotent)
-    const mevcut = await prisma.talep.findUnique({
-      where: { talepNo: Number(talepNo) },
+    const mevcut = await prisma.request.findUnique({
+      where: { requestNo: Number(talepNo) },
     });
     if (mevcut) {
       atlanan++;
@@ -100,31 +100,32 @@ async function main() {
     }
 
     // Firma oluştur/getir
-    const firma = await prisma.firma.upsert({
-      where: { ad: firmaAd },
-      update: {},
-      create: { ad: firmaAd },
-    });
+    let firma = await prisma.company.findUnique({ where: { name: firmaAd } });
+    if (!firma) {
+      firma = await prisma.company.create({ data: { name: firmaAd } });
+    }
 
     // İş birimi oluştur/getir
-    const birim = await prisma.isBirimi.upsert({
-      where: { firmaId_ad: { firmaId: firma.id, ad: birimAd } },
-      update: {},
-      create: { firmaId: firma.id, ad: birimAd },
+    let birim = await prisma.department.findUnique({
+      where: { companyId_name: { companyId: firma.id, name: birimAd } },
     });
+    if (!birim) {
+      birim = await prisma.department.create({
+        data: { companyId: firma.id, name: birimAd },
+      });
+    }
 
-    await prisma.talep.create({
+    await prisma.request.create({
       data: {
-        talepNo: Number(talepNo),
-        talepSahibi,
-        adayTuru,
-        adet: adet ? String(adet).trim() : null,
-        notlar,
-        guncelNot,
-        durumId: await talepDurumId(durumAdi),
-        olusturulmaTarihi: olusturmaTarihi ?? new Date(),
+        requestNo: Number(talepNo),
+        requestOwner: talepSahibi,
+        candidateType: adayTuru,
+        quantity: adet ? String(adet).trim() : null,
+        notes: notlar,
+        currentNote: guncelNot,
+        statusId: await talepDurumId(durumAdi),
         deadline,
-        isBirimiId: birim.id,
+        departmentId: birim.id,
         // Oluşturan: Excel'de isim var; User tablosunda eşleşmiyorsa boş bırakılır
       },
     });

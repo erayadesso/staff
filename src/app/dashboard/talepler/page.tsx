@@ -13,33 +13,33 @@ import LoadingMessage from "@/components/LoadingMessage";
 
 export const dynamic = "force-dynamic";
 
-async function getFilteredTalepler(showCancelled: boolean) {
+async function getFilteredRequests(showCancelled: boolean) {
   const aktifTalepTonlari = ["yeni", "ic", "dis", "gorsme", "secim", "kabul", "karsilandi"];
-  return prisma.talep.findMany({
+  return prisma.request.findMany({
     where: showCancelled ? undefined : {
-      durum: {
+      status: {
         ton: { in: aktifTalepTonlari },
       },
     },
     include: {
-      isBirimi: {
+      department: {
         select: {
-          ad: true,
-          firmaId: true,
-          firma: { select: { ad: true, logoUrl: true } },
+          name: true,
+          companyId: true,
+          company: { select: { name: true, logoUrl: true } },
         },
       },
-      durum: { select: { id: true, ad: true, sira: true, ton: true } },
-      adaylar: {
+      status: { select: { id: true, name: true, order: true, ton: true } },
+      candidates: {
         select: {
           id: true,
-          adayAdi: true,
-          surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
-          iseBaslamaTarihi: true,
+          candidateName: true,
+          processStatus: { select: { id: true, name: true, order: true, ton: true } },
+          startDate: true,
         },
       },
     },
-    orderBy: { talepNo: "desc" },
+    orderBy: { requestNo: "desc" },
   });
 }
 
@@ -54,7 +54,7 @@ export default async function TaleplerPage({
   const params = await searchParams;
   const showCancelled = params.showCancelled === 'true';
 
-  const talepler = await getFilteredTalepler(showCancelled);
+  const requests = await getFilteredRequests(showCancelled);
 
   return (
     <Suspense fallback={<LoadingMessage />}>
@@ -97,23 +97,23 @@ export default async function TaleplerPage({
       </div>
 
       <TalepFiltreliListesi
-        talepler={talepler.map((t) => ({
-          id: t.id,
-          talepNo: t.talepNo,
-          talepSahibi: t.talepSahibi,
-          adayTuru: t.adayTuru,
-          adet: t.adet,
-          durum: t.durum,
-          firmaAd: t.isBirimi.firma.ad,
-          firmaLogo: t.isBirimi.firma.logoUrl,
-          birimAd: t.isBirimi.ad,
-          adaylar: t.adaylar,
-          adaySayisi: t.adaylar.length,
-          olusturulmaTarihi: t.olusturulmaTarihi,
-          deadline: t.deadline,
-          yasi: pozisyonYasi(t.olusturulmaTarihi),
-          deadlineGectiMi: deadlineGecti(t.durum, t.deadline),
-          basariylaKapandi: isBasariKapatildi(t.adaylar, t.adet),
+        talepler={requests.map((r) => ({
+          id: r.id,
+          requestNo: r.requestNo,
+          requestOwner: r.requestOwner,
+          candidateType: r.candidateType,
+          quantity: r.quantity,
+          status: r.status,
+          companyName: r.department.company.name,
+          companyLogo: r.department.company.logoUrl,
+          departmentName: r.department.name,
+          candidates: r.candidates,
+          candidateCount: r.candidates.length,
+          createdAt: r.createdAt,
+          deadline: r.deadline,
+          yasi: pozisyonYasi(r.createdAt),
+          deadlineGectiMi: deadlineGecti(r.status, r.deadline),
+          basariylaKapandi: isBasariKapatildi(r.candidates.map(c => ({ processStatus: c.processStatus })), r.quantity),
         }))}
       />
     </div>

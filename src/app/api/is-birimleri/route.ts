@@ -26,20 +26,20 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const firma = await prisma.firma.findUnique({
+    const company = await prisma.company.findUnique({
       where: { id: firmaId },
     });
-    if (!firma) {
+    if (!company) {
       return NextResponse.json(
         { error: "Seçilen firma bulunamadı." },
         { status: 404 }
       );
     }
 
-    const kayit = await prisma.isBirimi.create({
+    const kayit = await prisma.department.create({
       data: {
-        ad,
-        firmaId,
+        name: ad,
+        companyId: firmaId,
       },
     });
 

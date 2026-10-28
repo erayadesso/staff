@@ -12,28 +12,28 @@ export async function DELETE(request: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
 
   try {
-    const isBirimi = await prisma.isBirimi.findUnique({
+    const department = await prisma.department.findUnique({
       where: { id },
       include: {
-        _count: { select: { talepler: true } },
+        _count: { select: { requests: true } },
       },
     });
 
-    if (!isBirimi) {
+    if (!department) {
       return NextResponse.json(
         { error: "İş birimi bulunamadı." },
         { status: 404 }
       );
     }
 
-    if (isBirimi._count.talepler > 0) {
+    if (department._count.requests > 0) {
       return NextResponse.json(
         { error: "Bu iş birimine bağlı talepler olduğu için silinemez." },
         { status: 400 }
       );
     }
 
-    await prisma.isBirimi.delete({
+    await prisma.department.delete({
       where: { id },
     });
 
@@ -74,9 +74,9 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   }
 
   try {
-    const kayit = await prisma.isBirimi.update({
+    const kayit = await prisma.department.update({
       where: { id },
-      data: { ad },
+      data: { name: ad },
     });
     return NextResponse.json({ ok: true, kayit });
   } catch (err) {

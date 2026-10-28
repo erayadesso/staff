@@ -17,9 +17,9 @@ export default async function StatulerPage() {
     );
   }
 
-  const [talepDurumlari, surecDurumlari] = await Promise.all([
-    prisma.talepDurumu.findMany({ orderBy: { sira: "asc" } }),
-    prisma.surecDurumu.findMany({ orderBy: { sira: "asc" } }),
+  const [requestStatuses, processStatuses] = await Promise.all([
+    prisma.requestStatus.findMany({ orderBy: { order: "asc" } }),
+    prisma.processStatus.findMany({ orderBy: { order: "asc" } }),
   ]);
 
   return (
@@ -38,12 +38,12 @@ export default async function StatulerPage() {
         <StatuYonetimi
           tip="talep"
           baslik="Talep Durumları"
-          statuler={talepDurumlari}
+          statuler={requestStatuses}
         />
         <StatuYonetimi
           tip="surec"
           baslik="Aday Süreç Durumları"
-          statuler={surecDurumlari}
+          statuler={processStatuses}
         />
       </div>
     </div>

@@ -19,11 +19,11 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const mevcutKullanici = await prisma.user.findUnique({
+  const existingUser = await prisma.user.findUnique({
     where: { id },
   });
 
-  if (!mevcutKullanici) {
+  if (!existingUser) {
     return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 404 });
   }
 
@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     data.passwordHash = await bcrypt.hash(body.sifre, 12);
   }
 
-  const guncellenen = await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id },
     data,
     select: {
@@ -56,7 +56,7 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     },
   });
 
-  return NextResponse.json({ ok: true, kullanici: guncellenen });
+  return NextResponse.json({ ok: true, user: updated });
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
@@ -74,11 +74,11 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
     );
   }
 
-  const mevcutKullanici = await prisma.user.findUnique({
+  const existingUser = await prisma.user.findUnique({
     where: { id },
   });
 
-  if (!mevcutKullanici) {
+  if (!existingUser) {
     return NextResponse.json({ error: "Kullanıcı bulunamadı." }, { status: 404 });
   }
 

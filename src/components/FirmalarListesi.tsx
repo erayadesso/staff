@@ -3,28 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-interface Birim {
+interface Department {
   id: string;
-  ad: string;
-  _count: { talepler: number };
+  name: string;
+  _count: { requests: number };
 }
 
-interface Firma {
+interface Company {
   id: string;
-  ad: string;
+  name: string;
   logoUrl?: string | null;
-  isBirimleri: Birim[];
+  departments: Department[];
 }
 
 interface FirmalarListesiProps {
-  firmalar: Firma[];
+  companies: Company[];
   isAdmin: boolean;
 }
 
 type Toast = { id: number; message: string; type: "error" | "success" };
 
 export default function FirmalarListesi({
-  firmalar,
+  companies,
   isAdmin,
 }: FirmalarListesiProps) {
   const router = useRouter();
@@ -39,17 +39,17 @@ export default function FirmalarListesi({
   const [yeniBirimAdi, setYeniBirimAdi] = useState("");
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const filtrelenen = firmalar
-    .map((f) => {
-      const eslesenBirimler = f.isBirimleri.filter(
-        (b) =>
+  const filtrelenen = companies
+    .map((c) => {
+      const eslesenBirimler = c.departments.filter(
+        (d) =>
           !arama.trim() ||
-          b.ad.toLowerCase().includes(arama.trim().toLowerCase())
+          d.name.toLowerCase().includes(arama.trim().toLowerCase())
       );
-      const firmaEslesiyor = f.ad
+      const firmaEslesiyor = c.name
         .toLowerCase()
         .includes(arama.trim().toLowerCase());
-      return { firma: f, eslesenBirimler, gorunur: firmaEslesiyor || eslesenBirimler.length > 0 };
+      return { company: c, eslesenBirimler, gorunur: firmaEslesiyor || eslesenBirimler.length > 0 };
     })
     .filter((x) => !arama.trim() || x.gorunur);
 
@@ -198,13 +198,13 @@ export default function FirmalarListesi({
     }
   }
 
-  async function yeniBirimEkle(firmaId: string) {
+  async function yeniBirimEkle(companyId: string) {
     if (!yeniBirimAdi.trim()) return;
     try {
       const res = await fetch(`/api/is-birimleri`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ad: yeniBirimAdi, firmaId }),
+        body: JSON.stringify({ ad: yeniBirimAdi, firmaId: companyId }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -262,13 +262,13 @@ export default function FirmalarListesi({
         </p>
       )}
 
-      {filtrelenen.map(({ firma: f, eslesenBirimler }) => (
+      {filtrelenen.map(({ company: c, eslesenBirimler }) => (
         <div
-          key={f.id}
+          key={c.id}
           className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
         >
           <div className="flex items-center justify-between gap-2">
-            {duzenlenenFirma === f.id ? (
+            {duzenlenenFirma === c.id ? (
               <div className="flex flex-1 items-center gap-2">
                 <input
                   value={firmaAdi}
@@ -277,7 +277,7 @@ export default function FirmalarListesi({
                   autoFocus
                 />
                 <button
-                  onClick={() => firmaGuncelle(f.id, firmaAdi)}
+                  onClick={() => firmaGuncelle(c.id, firmaAdi)}
                   className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
                 >
                   Kaydet
@@ -292,28 +292,28 @@ export default function FirmalarListesi({
             ) : (
               <>
                 <div className="flex items-center gap-3">
-                  {f.logoUrl ? (
+                  {c.logoUrl ? (
                     <img
-                      src={f.logoUrl}
-                      alt={f.ad}
+                      src={c.logoUrl}
+                      alt={c.name}
                       loading="lazy"
                       referrerPolicy="no-referrer"
                       className="h-8 w-8 shrink-0 rounded object-contain"
                     />
                   ) : (
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-zinc-200 text-sm font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                      {f.ad.charAt(0).toUpperCase()}
+                      {c.name.charAt(0).toUpperCase()}
                     </span>
                   )}
                   <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                    {f.ad}
+                    {c.name}
                   </h2>
                 </div>
                 {isAdmin && (
                   <div className="flex shrink-0 items-center gap-2">
-                    {f.logoUrl && (
+                    {c.logoUrl && (
                       <button
-                        onClick={() => logoKaldir(f.id)}
+                        onClick={() => logoKaldir(c.id)}
                         className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
                       >
                         Logo Kaldır
@@ -321,8 +321,8 @@ export default function FirmalarListesi({
                     )}
                     <button
                       onClick={() => {
-                        setLogoDuzenlenenFirma(logoDuzenlenenFirma === f.id ? null : f.id);
-                        setLogoUrl(f.logoUrl ?? "");
+                        setLogoDuzenlenenFirma(logoDuzenlenenFirma === c.id ? null : c.id);
+                        setLogoUrl(c.logoUrl ?? "");
                       }}
                       className="shrink-0 rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800"
                     >
@@ -330,15 +330,15 @@ export default function FirmalarListesi({
                     </button>
                     <button
                       onClick={() => {
-                        setDuzenlenenFirma(f.id);
-                        setFirmaAdi(f.ad);
+                        setDuzenlenenFirma(c.id);
+                        setFirmaAdi(c.name);
                       }}
                       className="shrink-0 rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-zinc-800"
                     >
                       Düzenle
                     </button>
                     <button
-                      onClick={() => firmaSil(f.id)}
+                      onClick={() => firmaSil(c.id)}
                       className="shrink-0 rounded px-2 py-1 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40"
                     >
                       Sil
@@ -349,7 +349,7 @@ export default function FirmalarListesi({
             )}
           </div>
 
-          {logoDuzenlenenFirma === f.id && (
+          {logoDuzenlenenFirma === c.id && (
             <div className="mt-3 flex items-center gap-2">
               <input
                 value={logoUrl}
@@ -359,7 +359,7 @@ export default function FirmalarListesi({
                 autoFocus
               />
               <button
-                onClick={() => logoKaydet(f.id)}
+                onClick={() => logoKaydet(c.id)}
                 className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
               >
                 Kaydet
@@ -381,7 +381,7 @@ export default function FirmalarListesi({
               {isAdmin && (
                 <button
                   onClick={() => {
-                    setYeniBirimEklenenFirma(yeniBirimEklenenFirma === f.id ? null : f.id);
+                    setYeniBirimEklenenFirma(yeniBirimEklenenFirma === c.id ? null : c.id);
                     setYeniBirimAdi("");
                   }}
                   className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
@@ -391,7 +391,7 @@ export default function FirmalarListesi({
               )}
             </div>
 
-            {yeniBirimEklenenFirma === f.id && (
+            {yeniBirimEklenenFirma === c.id && (
               <div className="mb-3 flex items-center gap-2">
                 <input
                   value={yeniBirimAdi}
@@ -401,7 +401,7 @@ export default function FirmalarListesi({
                   autoFocus
                 />
                 <button
-                  onClick={() => yeniBirimEkle(f.id)}
+                  onClick={() => yeniBirimEkle(c.id)}
                   className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
                 >
                   Ekle
@@ -422,10 +422,10 @@ export default function FirmalarListesi({
               {eslesenBirimler.length === 0 && (
                 <li className="text-sm text-zinc-500">İş birimi yok.</li>
               )}
-              {eslesenBirimler.map((b) =>
-                duzenlenenBirim === b.id ? (
+              {eslesenBirimler.map((d) =>
+                duzenlenenBirim === d.id ? (
                   <li
-                    key={b.id}
+                    key={d.id}
                     className="flex items-center gap-2 rounded-lg bg-zinc-50 p-1 text-sm dark:bg-zinc-900"
                   >
                     <input
@@ -435,7 +435,7 @@ export default function FirmalarListesi({
                       autoFocus
                     />
                     <button
-                      onClick={() => birimGuncelle(b.id, birimAdi)}
+                      onClick={() => birimGuncelle(d.id, birimAdi)}
                       className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
                     >
                       Kaydet
@@ -449,29 +449,29 @@ export default function FirmalarListesi({
                   </li>
                 ) : (
                   <li
-                    key={b.id}
+                    key={d.id}
                     className="flex items-center justify-between rounded-lg bg-zinc-50 p-2 text-sm dark:bg-zinc-900"
                   >
                     <span className="text-zinc-700 dark:text-zinc-300">
-                      {b.ad}
+                      {d.name}
                     </span>
                     <span className="flex items-center gap-3">
                       <span className="text-xs text-zinc-400">
-                        {b._count.talepler} talep
+                        {d._count.requests} talep
                       </span>
                       {isAdmin && (
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => {
-                              setDuzenlenenBirim(b.id);
-                              setBirimAdi(b.ad);
+                              setDuzenlenenBirim(d.id);
+                              setBirimAdi(d.name);
                             }}
                             className="shrink-0 rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40"
                           >
                             Düzenle
                           </button>
                           <button
-                            onClick={() => birimSil(b.id)}
+                            onClick={() => birimSil(d.id)}
                             className="shrink-0 rounded px-2 py-1 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/40"
                           >
                             Sil

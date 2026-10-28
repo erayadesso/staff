@@ -18,75 +18,75 @@ model User {
   tokenExpiry         DateTime?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
-  olusturduguTalepler Talep[]  @relation("TalepCreatedBy")
+  createdRequests     Request[] @relation("RequestCreatedBy")
 }
 
-model Firma {
+model Company {
   id          String     @id @default(cuid())
-  ad          String     @unique
+  name        String     @unique
   createdAt   DateTime   @default(now())
   logoUrl     String?
-  isBirimleri IsBirimi[]
+  departments Department[]
 }
 
-model IsBirimi {
+model Department {
   id       String  @id @default(cuid())
-  ad       String
-  firmaId  String
-  firma    Firma   @relation(fields: [firmaId], references: [id])
-  talepler Talep[]
+  name     String
+  companyId String
+  company  Company @relation(fields: [companyId], references: [id])
+  requests Request[]
 
-  @@unique([firmaId, ad])
+  @@unique([companyId, name])
 }
 
-model Talep {
+model Request {
   id                String    @id @default(cuid())
-  talepNo           Int       @unique @default(autoincrement())
-  talepSahibi       String
-  adayTuru          String
-  adet              String?
-  notlar            String?
-  guncelNot         String?
-  durumId           String?
-  olusturulmaTarihi DateTime  @default(now())
+  requestNo         Int       @unique @default(autoincrement())
+  requestOwner      String
+  candidateType     String
+  quantity          String?
+  notes             String?
+  currentNote       String?
+  statusId          String?
+  createdAt         DateTime  @default(now())
   deadline          DateTime?
-  isBirimiId        String
-  olusturanId       String?
-  adessoSuresi      DateTime?
-  adaylar           Aday[]
-  isBirimi          IsBirimi  @relation(fields: [isBirimiId], references: [id])
-  olusturan         User?     @relation("TalepCreatedBy", fields: [olusturanId], references: [id])
-  durum             TalepDurumu? @relation(fields: [durumId], references: [id])
+  departmentId      String
+  createdById       String?
+  adessoDuration    DateTime?
+  candidates        Candidate[]
+  department        Department  @relation(fields: [departmentId], references: [id])
+  createdBy         User?       @relation("RequestCreatedBy", fields: [createdById], references: [id])
+  status            RequestStatus? @relation(fields: [statusId], references: [id])
 }
 
-model Aday {
-  id               String    @id @default(cuid())
-  talepId          String?
-  domain           String?
-  talepDetaylari   String?
-  adayAdi          String
-  source           String?
-  surecDurumId     String?
-  adayCost         String?
-  iseBaslamaTarihi DateTime?
-  createdAt        DateTime  @default(now())
-  firmaAd          String?
-  talep            Talep?    @relation(fields: [talepId], references: [id], onDelete: Cascade)
-  surecDurum       SurecDurumu? @relation(fields: [surecDurumId], references: [id])
+model Candidate {
+  id                String    @id @default(cuid())
+  requestId         String?
+  domain            String?
+  requestDetails    String?
+  candidateName     String
+  source            String?
+  processStatusId   String?
+  cost              String?
+  startDate         DateTime?
+  createdAt         DateTime  @default(now())
+  clientName        String?
+  request           Request?    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  processStatus     ProcessStatus? @relation(fields: [processStatusId], references: [id])
 }
 
-model TalepDurumu {
+model RequestStatus {
   id     String @id @default(cuid())
-  ad     String @unique
-  sira   Int    @default(0)
+  name   String @unique
+  order  Int    @default(0)
   ton    String @default("varsayilan")
-  talepler Talep[]
+  requests Request[]
 }
 
-model SurecDurumu {
+model ProcessStatus {
   id     String @id @default(cuid())
-  ad     String @unique
-  sira   Int    @default(0)
+  name   String @unique
+  order  Int    @default(0)
   ton    String @default("varsayilan")
-  adaylar Aday[]
+  candidates Candidate[]
 }

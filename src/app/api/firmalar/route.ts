@@ -21,17 +21,17 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const firma = await prisma.firma.upsert({
-      where: { ad: firmaAd },
+    const company = await prisma.company.upsert({
+      where: { name: firmaAd },
       update: {},
-      create: { ad: firmaAd },
+      create: { name: firmaAd },
     });
 
     if (body.birimAd?.trim()) {
-      await prisma.isBirimi.upsert({
-        where: { firmaId_ad: { firmaId: firma.id, ad: body.birimAd.trim() } },
+      await prisma.department.upsert({
+        where: { companyId_name: { companyId: company.id, name: body.birimAd.trim() } },
         update: {},
-        create: { firmaId: firma.id, ad: body.birimAd.trim() },
+        create: { companyId: company.id, name: body.birimAd.trim() },
       });
     }
 

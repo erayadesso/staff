@@ -49,34 +49,34 @@ const SUREC_TON: Record<string, string> = {
 
 async function main() {
   let talepTon = 0;
-  const talepDurumlari = await prisma.talepDurumu.findMany();
+  const talepDurumlari = await prisma.requestStatus.findMany();
   for (const td of talepDurumlari) {
-    const ton = TALEP_TON[td.ad];
+    const ton = TALEP_TON[td.name];
     if (ton && ton !== td.ton) {
-      await prisma.talepDurumu.update({ where: { id: td.id }, data: { ton } });
+      await prisma.requestStatus.update({ where: { id: td.id }, data: { ton } });
       talepTon++;
     }
   }
-  console.log(`TalepDurumu ton guncellenen: ${talepTon}`);
+  console.log(`RequestStatus ton guncellenen: ${talepTon}`);
 
   let surecTon = 0;
-  const surecDurumlari = await prisma.surecDurumu.findMany();
+  const surecDurumlari = await prisma.processStatus.findMany();
   for (const sd of surecDurumlari) {
-    const ton = SUREC_TON[sd.ad];
+    const ton = SUREC_TON[sd.name];
     if (ton && ton !== sd.ton) {
-      await prisma.surecDurumu.update({ where: { id: sd.id }, data: { ton } });
+      await prisma.processStatus.update({ where: { id: sd.id }, data: { ton } });
       surecTon++;
     }
   }
-  console.log(`SurecDurumu ton guncellenen: ${surecTon}`);
+  console.log(`ProcessStatus ton guncellenen: ${surecTon}`);
 
-  const bagliTalep = await prisma.talep.count({ where: { durumId: { not: null } } });
-  const toplamTalep = await prisma.talep.count();
-  console.log(`Talep durumId dolu: ${bagliTalep}/${toplamTalep}`);
+  const bagliTalep = await prisma.request.count({ where: { statusId: { not: null } } });
+  const toplamTalep = await prisma.request.count();
+  console.log(`Talep statusId dolu: ${bagliTalep}/${toplamTalep}`);
 
-  const bagliAday = await prisma.aday.count({ where: { surecDurumId: { not: null } } });
-  const toplamAday = await prisma.aday.count();
-  console.log(`Aday surecDurumId dolu: ${bagliAday}/${toplamAday}`);
+  const bagliAday = await prisma.candidate.count({ where: { processStatusId: { not: null } } });
+  const toplamAday = await prisma.candidate.count();
+  console.log(`Aday processStatusId dolu: ${bagliAday}/${toplamAday}`);
 }
 
 main().finally(() => prisma.$disconnect());

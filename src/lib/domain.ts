@@ -25,14 +25,14 @@ export function isValidInviteEmail(email: string): {
 /* ------------------------------------------------------------------ */
 
 /**
- * Bir statünün DB kaydı (id/ad/sira/ton) ya da yalnızca ton string'i.
+ * Bir statünün DB kaydı (id/name/order/ton) ya da yalnızca ton string'i.
  * Renk/amblem ve hiçbir statü fonksiyonu artık isim string'i üzerinden
  * çalışmaz; hepsi bu tipin `ton` alanını kullanır.
  */
 export interface StatuNesne {
   id?: string | null;
-  ad?: string | null;
-  sira?: number | null;
+  name?: string | null;
+  order?: number | null;
   ton?: string | null;
 }
 
@@ -185,10 +185,10 @@ export function adayStatuRenkSelect(t: string | StatuNesne | null | undefined): 
 /* Aday ilerleme skoru ve otomatik talep statüsü                       */
 /* ------------------------------------------------------------------ */
 
-/** Aday statüsünün ilerleme skoru — `sira` alanına göre (büyük = daha ileri). */
+/** Aday statüsünün ilerleme skoru — `order` alanına göre (büyük = daha ileri). */
 export function adayIlerlemeSkoru(durum: StatuNesne | null | undefined): number {
-  if (!durum || typeof durum.sira !== "number") return -1;
-  return durum.sira;
+  if (!durum || typeof durum.order !== "number") return -1;
+  return durum.order;
 }
 
 /** Aday statü adı -> talep tonu haritası (hard-coded UI sabiti, DB'den bağımsız). */
@@ -231,9 +231,9 @@ export function talepDurumuBelirle(
     const ton = d.ton;
     if (!ton) continue;
     if (ADAY_CIKIS_TONLARI.has(ton)) continue;
-    const talepTon = ADAYDAN_TALEPE.get(d.ad || "");
+    const talepTon = ADAYDAN_TALEPE.get(d.name || "");
     if (!talepTon) continue;
-    const sira = typeof d.sira === "number" ? d.sira : -1;
+    const sira = typeof d.order === "number" ? d.order : -1;
     if (sira > enIleriSira) {
       enIleriSira = sira;
       secilenTon = talepTon;
@@ -244,7 +244,7 @@ export function talepDurumuBelirle(
     // Eşleşen tondaki adaylardan en üst siradakini seç
     const aday = talepDurumlari
       .filter((t) => t.ton === secilenTon)
-      .sort((a, b) => (b.sira ?? 0) - (a.sira ?? 0))[0];
+      .sort((a, b) => (b.order ?? 0) - (a.order ?? 0))[0];
     if (aday?.id) return aday.id;
   }
 
@@ -307,11 +307,11 @@ export function parseAdet(adet: string | null | undefined): number {
  * talebin karşılandığını döndürür.
  */
 export function isBasariKapatildi(
-  adaylar: { surecDurum: string | StatuNesne | null | undefined }[],
+  adaylar: { processStatus: string | StatuNesne | null | undefined }[],
   adet: string | null | undefined
 ): boolean {
   const iseBaslayan = adaylar.filter(
-    (a) => statununTonu(a.surecDurum) === "karsilandi"
+    (a) => statununTonu(a.processStatus) === "karsilandi"
   ).length;
   const hedef = parseAdet(adet);
   return hedef > 0 && iseBaslayan === hedef;

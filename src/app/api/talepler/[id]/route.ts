@@ -4,60 +4,60 @@ import { getSessionUser } from "@/lib/session";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-export async function PATCH(request: NextRequest, ctx: Ctx) {
+export async function PATCH(req: NextRequest, ctx: Ctx) {
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: "Giriş yapmalısınız." }, { status: 401 });
   }
   const { id } = await ctx.params;
 
-  let body: { durumId?: string; guncelNot?: string };
+  let body: { statusId?: string; currentNote?: string };
   try {
-    body = await request.json();
+    body = await req.json();
   } catch {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const existing = await prisma.talep.findUnique({ where: { id } });
+  const existing = await prisma.request.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Talep bulunamadı." }, { status: 404 });
   }
 
-  const talep = await prisma.talep.update({
+  const result = await prisma.request.update({
     where: { id },
     data: {
-      ...(body.durumId !== undefined && { durumId: body.durumId || null }),
-      ...(body.guncelNot !== undefined && { guncelNot: body.guncelNot }),
+      ...(body.statusId !== undefined && { statusId: body.statusId || null }),
+      ...(body.currentNote !== undefined && { currentNote: body.currentNote }),
     },
   });
 
 
-  return NextResponse.json({ ok: true, talep });
+  return NextResponse.json({ ok: true, request: result });
 }
 
-export async function DELETE(request: NextRequest, ctx: Ctx) {
+export async function DELETE(req: NextRequest, ctx: Ctx) {
   const user = await getSessionUser();
   if (!user || user.role !== "ADMIN") {
     return NextResponse.json({ error: "Yetkisiz işlem." }, { status: 401 });
   }
   const { id } = await ctx.params;
 
-  const talep = await prisma.talep.findUnique({
+  const result = await prisma.request.findUnique({
     where: { id },
-    include: { adaylar: true },
+    include: { candidates: true },
   });
 
-  if (!talep) {
+  if (!result) {
     return NextResponse.json({ error: "Talep bulunamadı." }, { status: 404 });
   }
 
-  if (talep.adaylar.length > 0) {
+  if (result.candidates.length > 0) {
     return NextResponse.json(
-      { error: `Bu talebe bağlı ${talep.adaylar.length} adet aday kaydı bulunmaktadır. Talep silmek için önce adayları silmelisiniz.` },
+      { error: `Bu talebe bağlı ${result.candidates.length} adet aday kaydı bulunmaktadır. Talep silmek için önce adayları silmelisiniz.` },
       { status: 400 }
     );
   }
 
-  await prisma.talep.delete({ where: { id } });
+  await prisma.request.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

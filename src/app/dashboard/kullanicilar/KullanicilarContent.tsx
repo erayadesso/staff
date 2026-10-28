@@ -3,14 +3,13 @@
 import { useState } from "react";
 import { toast } from "sonner";
 
-type User = {
+interface User {
   id: string;
-  email: string;
   name: string | null;
+  email: string;
   role: string;
   isActive: boolean;
-  createdAt: Date;
-};
+}
 
 export default function KullanicilarContent({ users }: { users: User[] }) {
   const [seciliKullanici, setSeciliKullanici] = useState<User | null>(null);

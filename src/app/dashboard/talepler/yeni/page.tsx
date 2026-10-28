@@ -9,20 +9,20 @@ export default async function YeniTalepPage() {
   const user = await getSessionUser();
   if (!user) return null;
 
-  const birimler = await prisma.isBirimi.findMany({
-    include: { firma: true },
-    orderBy: [{ firma: { ad: "asc" } }, { ad: "asc" }],
+  const departments = await prisma.department.findMany({
+    include: { company: true },
+    orderBy: [{ company: { name: "asc" } }, { name: "asc" }],
   });
 
   const yeniDurum =
-    (await prisma.talepDurumu.findFirst({
+    (await prisma.requestStatus.findFirst({
       where: { ton: "yeni" },
-      orderBy: { sira: "asc" },
-      select: { id: true, ad: true, sira: true, ton: true },
+      orderBy: { order: "asc" },
+      select: { id: true, name: true, order: true, ton: true },
     })) ??
-    (await prisma.talepDurumu.findFirst({
-      orderBy: { sira: "asc" },
-      select: { id: true, ad: true, sira: true, ton: true },
+    (await prisma.requestStatus.findFirst({
+      orderBy: { order: "asc" },
+      select: { id: true, name: true, order: true, ton: true },
     }));
 
   return (
@@ -40,10 +40,10 @@ export default async function YeniTalepPage() {
       </div>
 
       <TalepForm
-        birimler={birimler.map((b) => ({
-          id: b.id,
-          ad: b.ad,
-          firmaAd: b.firma.ad,
+        departments={departments.map((d) => ({
+          id: d.id,
+          name: d.name,
+          companyName: d.company.name,
         }))}
         yeniDurum={yeniDurum}
       />

@@ -3,64 +3,64 @@ import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import { talepDurumunuGuncelle } from "@/lib/otomatik-talep";
 
-export async function POST(request: NextRequest) {
+export async function POST(req: NextRequest) {
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ error: "Giriş yapmalısınız." }, { status: 401 });
   }
 
   let body: {
-    talepId?: string;
-    adayAdi?: string;
+    requestId?: string;
+    candidateName?: string;
     domain?: string;
-    talepDetaylari?: string;
+    requestDetails?: string;
     source?: string;
-    surecDurumId?: string;
-    adayCost?: string;
-    iseBaslamaTarihi?: string | null;
+    processStatusId?: string;
+    cost?: string;
+    startDate?: string | null;
   };
   try {
-    body = await request.json();
+    body = await req.json();
   } catch {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const adayAdi = body.adayAdi?.trim();
-  if (!adayAdi || !body.talepId) {
+  const candidateName = body.candidateName?.trim();
+  if (!candidateName || !body.requestId) {
     return NextResponse.json(
       { error: "Aday adı ve talep zorunludur." },
       { status: 400 }
     );
   }
 
-  const talep = await prisma.talep.findUnique({
-    where: { id: body.talepId },
+  const reqObj = await prisma.request.findUnique({
+    where: { id: body.requestId },
   });
-  if (!talep) {
+  if (!reqObj) {
     return NextResponse.json({ error: "Talep bulunamadı." }, { status: 404 });
   }
 
-  let iseBaslama: Date | null = null;
-  if (body.iseBaslamaTarihi) {
-    const d = new Date(body.iseBaslamaTarihi);
-    if (!Number.isNaN(d.getTime())) iseBaslama = d;
+  let startDate: Date | null = null;
+  if (body.startDate) {
+    const d = new Date(body.startDate);
+    if (!Number.isNaN(d.getTime())) startDate = d;
   }
 
-  const aday = await prisma.aday.create({
+  const candidate = await prisma.candidate.create({
     data: {
-      talepId: talep.id,
-      adayAdi,
+      requestId: reqObj.id,
+      candidateName,
       domain: body.domain?.trim() || null,
-      talepDetaylari: body.talepDetaylari?.trim() || null,
+      requestDetails: body.requestDetails?.trim() || null,
       source: body.source?.trim() || null,
-      surecDurumId: body.surecDurumId || null,
-      adayCost: body.adayCost?.trim() || null,
-      iseBaslamaTarihi: iseBaslama,
+      processStatusId: body.processStatusId || null,
+      cost: body.cost?.trim() || null,
+      startDate,
     },
   });
 
   // Yeni aday eklendikten sonra talebin statüsünü otomatik güncelle
-  await talepDurumunuGuncelle(talep.id);
+  await talepDurumunuGuncelle(reqObj.id);
 
-  return NextResponse.json({ ok: true, aday }, { status: 201 });
+  return NextResponse.json({ ok: true, candidate }, { status: 201 });
 }

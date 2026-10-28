@@ -9,15 +9,15 @@ export async function POST(request: NextRequest) {
   }
 
   let body: {
-    talepSahibi?: string;
-    adayTuru?: string;
-    adet?: string;
-    notlar?: string;
-    guncelNot?: string;
-    durumId?: string;
+    requestOwner?: string;
+    candidateType?: string;
+    quantity?: string;
+    notes?: string;
+    currentNote?: string;
+    statusId?: string;
     deadline?: string | null;
-    adessoSuresi?: string | null;
-    isBirimiId?: string;
+    adessoDuration?: string | null;
+    departmentId?: string;
   };
   try {
     body = await request.json();
@@ -25,26 +25,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const talepSahibi = body.talepSahibi?.trim();
-  const adayTuru = body.adayTuru?.trim();
-  if (!talepSahibi || !adayTuru || !body.isBirimiId) {
+  const requestOwner = body.requestOwner?.trim();
+  const candidateType = body.candidateType?.trim();
+  if (!requestOwner || !candidateType || !body.departmentId) {
     return NextResponse.json(
       { error: "Talep sahibi, aday türü ve iş birimi zorunludur." },
       { status: 400 }
     );
   }
 
-  const isBirimi = await prisma.isBirimi.findUnique({
-    where: { id: body.isBirimiId },
+  const department = await prisma.department.findUnique({
+    where: { id: body.departmentId },
   });
-  if (!isBirimi) {
+  if (!department) {
     return NextResponse.json({ error: "Geçersiz iş birimi." }, { status: 400 });
   }
 
-  const adetMetin = body.adet?.trim();
-  if (adetMetin) {
-    const adetSayi = Number(adetMetin);
-    if (!/^\d+$/.test(adetMetin) || adetSayi < 1 || adetSayi > 100) {
+  const quantityText = body.quantity?.trim();
+  if (quantityText) {
+    const quantityNum = Number(quantityText);
+    if (!/^\d+$/.test(quantityText) || quantityNum < 1 || quantityNum > 100) {
       return NextResponse.json(
         { error: "Adet 1 ile 100 arasında bir tam sayı olmalıdır." },
         { status: 400 }
@@ -58,44 +58,44 @@ export async function POST(request: NextRequest) {
     if (!Number.isNaN(d.getTime())) deadline = d;
   }
 
-  let adessoSuresi: Date | null = null;
-  if (body.adessoSuresi) {
-    const d = new Date(body.adessoSuresi);
-    if (!Number.isNaN(d.getTime())) adessoSuresi = d;
+  let adessoDuration: Date | null = null;
+  if (body.adessoDuration) {
+    const d = new Date(body.adessoDuration);
+    if (!Number.isNaN(d.getTime())) adessoDuration = d;
   }
 
   // Varsayılan talep durumu: en düşük sira'lı "yeni" ton (ya da ilk kayıt)
-  let durumId: string | null = null;
-  if (body.durumId) {
-    const d = await prisma.talepDurumu.findUnique({ where: { id: body.durumId } });
-    if (d) durumId = d.id;
+  let statusId: string | null = null;
+  if (body.statusId) {
+    const d = await prisma.requestStatus.findUnique({ where: { id: body.statusId } });
+    if (d) statusId = d.id;
   }
-  if (!durumId) {
-    const varsayilan = await prisma.talepDurumu.findFirst({
+  if (!statusId) {
+    const varsayilan = await prisma.requestStatus.findFirst({
       where: { ton: "yeni" },
-      orderBy: { sira: "asc" },
+      orderBy: { order: "asc" },
     });
-    durumId = varsayilan?.id ?? null;
+    statusId = varsayilan?.id ?? null;
   }
 
   try {
-    const talep = await prisma.talep.create({
+    const request = await prisma.request.create({
       data: {
-        talepSahibi,
-        adayTuru,
-        adet: body.adet?.trim() || null,
-        notlar: body.notlar?.trim() || null,
-        guncelNot: body.guncelNot?.trim() || null,
-        durumId,
+        requestOwner,
+        candidateType,
+        quantity: body.quantity?.trim() || null,
+        notes: body.notes?.trim() || null,
+        currentNote: body.currentNote?.trim() || null,
+        statusId,
         deadline,
-        adessoSuresi,
-        isBirimiId: isBirimi.id,
-        olusturanId: user.id,
+        adessoDuration,
+        departmentId: department.id,
+        createdById: user.id,
       },
     });
 
 
-    return NextResponse.json({ ok: true, talep }, { status: 201 });
+    return NextResponse.json({ ok: true, request }, { status: 201 });
   } catch (err: any) {
     console.error("Talep oluşturulurken hata:", err);
     if (err?.code === "P2002") {

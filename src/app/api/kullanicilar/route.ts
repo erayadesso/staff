@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Giriş yapmalısınız." }, { status: 401 });
   }
 
-  const tumKullanicilar = await prisma.user.findMany({
+  const allUsers = await prisma.user.findMany({
     select: {
       id: true,
       email: true,
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
   });
 
-  return NextResponse.json({ tumKullanicilar });
+  return NextResponse.json({ allUsers });
 }
 
 export async function POST(request: NextRequest) {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   const sifreHash = await bcrypt.hash(body.sifre, 12);
 
   try {
-    const yeniKullanici = await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         email: body.email.toLowerCase().trim(),
         name: body.name?.trim() || null,
@@ -59,12 +59,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         ok: true,
-        kullanici: {
-          id: yeniKullanici.id,
-          email: yeniKullanici.email,
-          name: yeniKullanici.name,
-          role: yeniKullanici.role,
-          isActive: yeniKullanici.isActive,
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name,
+          role: newUser.role,
+          isActive: newUser.isActive,
         },
       },
       { status: 201 }

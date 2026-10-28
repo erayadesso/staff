@@ -4,15 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { adayStatuRenkSelect, type StatuNesne } from "@/lib/domain";
 
-interface Aday {
+interface Candidate {
   id: string;
-  adayAdi: string;
+  candidateName: string;
   source: string | null;
-  surecDurum: StatuNesne | null;
+  processStatus: StatuNesne | null;
   domain: string | null;
-  adayCost: string | null;
-  iseBaslamaTarihi: Date | null;
-  talepDetaylari: string | null;
+  cost: string | null;
+  startDate: Date | null;
+  requestDetails: string | null;
   createdAt: Date;
 }
 
@@ -23,15 +23,15 @@ function extractCost(value: string): { amount: string; currency: string } {
 }
 
 interface AdayListesiProps {
-  adaylar: Aday[];
-  surecDurumlari: StatuNesne[];
-  talepId: string;
+  adaylar: Candidate[];
+  processStatuses: StatuNesne[];
+  request_id: string;
 }
 
 export default function AdayListesi({
   adaylar,
-  surecDurumlari,
-  talepId,
+  processStatuses,
+  request_id,
 }: AdayListesiProps) {
   const [editId, setEditId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -41,37 +41,37 @@ export default function AdayListesi({
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
-  const [formData, setFormData] = useState<Record<string, { name: string; surecDurum: string; source: string; currency: string; cost: string; iseBas: string; domain: string; talepDetaylari: string }>>({});
+  const [formData, setFormData] = useState<Record<string, { name: string; processStatus: string; source: string; currency: string; cost: string; iseBas: string; domain: string; requestDetails: string }>>({});
 
   const [newForm, setNewForm] = useState({
     name: "",
-    surecDurum: "",
+    processStatus: "",
     source: "",
     currency: "₺",
     cost: "",
     iseBas: "",
     domain: "",
-    talepDetaylari: "",
+    requestDetails: "",
   });
 
-  function openEdit(aday: Aday) {
-    const { amount, currency } = extractCost(aday.adayCost || "");
+  function openEdit(candidate: Candidate) {
+    const { amount, currency } = extractCost(candidate.cost || "");
     setFormData((prev) => ({
       ...prev,
-      [aday.id]: {
-        name: aday.adayAdi,
-        surecDurum: aday.surecDurum?.id || "",
-        source: aday.source || "",
+      [candidate.id]: {
+        name: candidate.candidateName,
+        processStatus: candidate.processStatus?.id || "",
+        source: candidate.source || "",
         currency,
         cost: amount,
-        iseBas: aday.iseBaslamaTarihi
-          ? new Date(aday.iseBaslamaTarihi).toISOString().split("T")[0]
+        iseBas: candidate.startDate
+          ? new Date(candidate.startDate).toISOString().split("T")[0]
           : "",
-        domain: aday.domain || "",
-        talepDetaylari: aday.talepDetaylari || "",
+        domain: candidate.domain || "",
+        requestDetails: candidate.requestDetails || "",
       },
     }));
-    setEditId(aday.id);
+    setEditId(candidate.id);
     setShowAdd(false);
   }
 
@@ -99,7 +99,7 @@ export default function AdayListesi({
       await fetch(`/api/adaylar/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ surecDurumId: yeniDurum }),
+        body: JSON.stringify({ processStatusId: yeniDurum }),
       });
       router.refresh();
     } catch {
@@ -119,13 +119,13 @@ export default function AdayListesi({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          adayAdi: d.name,
-          surecDurumId: d.surecDurum,
+          candidateName: d.name,
+          processStatusId: d.processStatus,
           source: d.source,
-          adayCost: fullCost,
-          iseBaslamaTarihi: d.iseBas || null,
+          cost: fullCost,
+          startDate: d.iseBas || null,
           domain: d.domain || null,
-          talepDetaylari: d.talepDetaylari || null,
+          requestDetails: d.requestDetails || null,
         }),
       });
       setEditId(null);
@@ -146,14 +146,14 @@ export default function AdayListesi({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          talepId,
-          adayAdi: newForm.name,
+          request_id,
+          candidateName: newForm.name,
           domain: newForm.domain || null,
-          talepDetaylari: newForm.talepDetaylari || null,
+          requestDetails: newForm.requestDetails || null,
           source: newForm.source || null,
-          surecDurumId: newForm.surecDurum || null,
-          adayCost: fullCost,
-          iseBaslamaTarihi: newForm.iseBas || null,
+          processStatusId: newForm.processStatus || null,
+          cost: fullCost,
+          startDate: newForm.iseBas || null,
         }),
       });
       const data = await res.json();
@@ -161,7 +161,7 @@ export default function AdayListesi({
         setError(data.error ?? "Aday eklenemedi.");
         return;
       }
-      setNewForm({ name: "", surecDurum: "", source: "", currency: "₺", cost: "", iseBas: "", domain: "", talepDetaylari: "" });
+      setNewForm({ name: "", processStatus: "", source: "", currency: "₺", cost: "", iseBas: "", domain: "", requestDetails: "" });
       setShowAdd(false);
       router.refresh();
     } catch {
@@ -171,9 +171,9 @@ export default function AdayListesi({
     }
   }
 
-  async function handleDelete(aday: Aday) {
-    if (!confirm(`${aday.adayAdi} adayı silinsin mi?`)) return;
-    await fetch(`/api/adaylar/${aday.id}`, { method: "DELETE" });
+  async function handleDelete(candidate: Candidate) {
+    if (!confirm(`${candidate.candidateName} adayı silinsin mi?`)) return;
+    await fetch(`/api/adaylar/${candidate.id}`, { method: "DELETE" });
     router.refresh();
   }
 
@@ -193,69 +193,69 @@ export default function AdayListesi({
   return (
     <div className="space-y-4">
       <div className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-        {adaylar.map((aday) => (
+        {adaylar.map((candidate) => (
           <div
-            key={aday.id}
+            key={candidate.id}
             className={`space-y-3 py-4 transition ${
-              editId === aday.id
+              editId === candidate.id
                 ? "bg-amber-50/50 dark:bg-amber-950/10 rounded-lg -mx-2 px-2"
                 : "hover:bg-zinc-50 dark:hover:bg-zinc-900/20"
             }`}
           >
             {/* Satır içeriği */}
-            {editId !== aday.id && (
+            {editId !== candidate.id && (
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                      {aday.adayAdi}
+                      {candidate.candidateName}
                     </p>
-                    {aday.domain && (
+                    {candidate.domain && (
                       <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                        {aday.domain}
+                        {candidate.domain}
                       </span>
                     )}
-                    {aday.source && (
+                    {candidate.source && (
                       <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                        {aday.source}
+                        {candidate.source}
                       </span>
                     )}
-                    {aday.adayCost && (
+                    {candidate.cost && (
                       <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
-                        {aday.adayCost}
+                        {candidate.cost}
                       </span>
                     )}
-                    {aday.iseBaslamaTarihi && (
+                    {candidate.startDate && (
                       <span className="rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
-                        İşe Başlama: {fmtDate(aday.iseBaslamaTarihi)}
+                        İşe Başlama: {fmtDate(candidate.startDate)}
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   <select
-                    value={aday.surecDurum?.id || ""}
-                    onChange={(e) => handleStatusChange(aday.id, e.target.value)}
-                    disabled={savingStatus === aday.id}
+                    value={candidate.processStatus?.id || ""}
+                    onChange={(e) => handleStatusChange(candidate.id, e.target.value)}
+                    disabled={savingStatus === candidate.id}
                     className={`max-w-[200px] rounded-lg border border-zinc-300 px-2 py-1.5 text-xs outline-none focus:border-zinc-500 dark:border-zinc-700 ${adayStatuRenkSelect(
-                      aday.surecDurum
+                      candidate.processStatus
                     )}`}
                   >
                     <option value="">—</option>
-                    {surecDurumlari.map((d) => (
+                    {processStatuses.map((d) => (
                       <option key={d.id} value={d.id ?? ""}>
-                        {d.ad}
+                        {d.name}
                       </option>
                     ))}
                   </select>
                   <button
-                    onClick={() => openEdit(aday)}
+                    onClick={() => openEdit(candidate)}
                     className="rounded px-2 py-1.5 text-xs text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
                   >
                     Düzenle
                   </button>
                   <button
-                    onClick={() => handleDelete(aday)}
+                    onClick={() => handleDelete(candidate)}
                     className="rounded px-2 py-1.5 text-xs text-zinc-400 transition hover:bg-zinc-100 hover:text-red-600 dark:hover:bg-zinc-800 dark:hover:text-red-400"
                   >
                     Sil
@@ -265,7 +265,7 @@ export default function AdayListesi({
             )}
 
             {/* Edit formu */}
-            {editId === aday.id && formData[aday.id] && (
+            {editId === candidate.id && formData[candidate.id] && (
               <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/20 sm:ml-4">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
@@ -273,8 +273,8 @@ export default function AdayListesi({
                       Ad Soyad
                     </label>
                     <input
-                      value={formData[aday.id].name}
-                      onChange={(e) => updateField(aday.id, "name", e.target.value)}
+                      value={formData[candidate.id].name}
+                      onChange={(e) => updateField(candidate.id, "name", e.target.value)}
                       className={inputClass}
                     />
                   </div>
@@ -283,14 +283,14 @@ export default function AdayListesi({
                       Süreç Durumu
                     </label>
                     <select
-                      value={formData[aday.id].surecDurum}
-                      onChange={(e) => updateField(aday.id, "surecDurum", e.target.value)}
+                      value={formData[candidate.id].processStatus}
+                      onChange={(e) => updateField(candidate.id, "processStatus", e.target.value)}
                       className={selectClass}
                     >
                       <option value="">Seçiniz</option>
-                      {surecDurumlari.map((d) => (
+                      {processStatuses.map((d) => (
                         <option key={d.id} value={d.id ?? ""}>
-                          {d.ad}
+                          {d.name}
                         </option>
                       ))}
                     </select>
@@ -302,8 +302,8 @@ export default function AdayListesi({
                       Domain
                     </label>
                     <input
-                      value={formData[aday.id].domain}
-                      onChange={(e) => updateField(aday.id, "domain", e.target.value)}
+                      value={formData[candidate.id].domain}
+                      onChange={(e) => updateField(candidate.id, "domain", e.target.value)}
                       className={inputClass}
                     />
                   </div>
@@ -312,8 +312,8 @@ export default function AdayListesi({
                       Source
                     </label>
                     <input
-                      value={formData[aday.id].source}
-                      onChange={(e) => updateField(aday.id, "source", e.target.value)}
+                      value={formData[candidate.id].source}
+                      onChange={(e) => updateField(candidate.id, "source", e.target.value)}
                       className={inputClass}
                     />
                   </div>
@@ -327,16 +327,16 @@ export default function AdayListesi({
                       <input
                         type="text"
                         inputMode="decimal"
-                        value={formData[aday.id].cost}
+                        value={formData[candidate.id].cost}
                         onChange={(e) =>
-                          updateField(aday.id, "cost", formatPriceInput(e.target.value))
+                          updateField(candidate.id, "cost", formatPriceInput(e.target.value))
                         }
                         className={costInputInner}
                         placeholder="0.00"
                       />
                       <select
-                        value={formData[aday.id].currency}
-                        onChange={(e) => updateField(aday.id, "currency", e.target.value)}
+                        value={formData[candidate.id].currency}
+                        onChange={(e) => updateField(candidate.id, "currency", e.target.value)}
                         className={costCurrencySelect}
                       >
                         <option value="₺">₺</option>
@@ -351,8 +351,8 @@ export default function AdayListesi({
                     </label>
                     <input
                       type="date"
-                      value={formData[aday.id].iseBas}
-                      onChange={(e) => updateField(aday.id, "iseBas", e.target.value)}
+                      value={formData[candidate.id].iseBas}
+                      onChange={(e) => updateField(candidate.id, "iseBas", e.target.value)}
                       className={inputClass}
                     />
                   </div>
@@ -362,8 +362,8 @@ export default function AdayListesi({
                     Talep Detayları
                   </label>
                   <textarea
-                    value={formData[aday.id].talepDetaylari}
-                    onChange={(e) => updateField(aday.id, "talepDetaylari", e.target.value)}
+                    value={formData[candidate.id].requestDetails}
+                    onChange={(e) => updateField(candidate.id, "requestDetails", e.target.value)}
                     rows={2}
                     className={inputClass + " resize-y"}
                   />
@@ -376,7 +376,7 @@ export default function AdayListesi({
                     İptal
                   </button>
                   <button
-                    onClick={() => handleSave(aday.id)}
+                    onClick={() => handleSave(candidate.id)}
                     disabled={saving}
                     className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-50"
                   >
@@ -423,14 +423,14 @@ export default function AdayListesi({
                 Süreç Durumu
               </label>
               <select
-                value={newForm.surecDurum}
-                onChange={(e) => setNewForm((p) => ({ ...p, surecDurum: e.target.value }))}
+                value={newForm.processStatus}
+                onChange={(e) => setNewForm((p) => ({ ...p, processStatus: e.target.value }))}
                 className={selectClass}
               >
                 <option value="">Seçiniz</option>
-                {surecDurumlari.map((d) => (
+                {processStatuses.map((d) => (
                   <option key={d.id} value={d.id ?? ""}>
-                    {d.ad}
+                    {d.name}
                   </option>
                 ))}
               </select>
@@ -500,8 +500,8 @@ export default function AdayListesi({
               Talep Detayları
             </label>
             <textarea
-              value={newForm.talepDetaylari}
-              onChange={(e) => setNewForm((p) => ({ ...p, talepDetaylari: e.target.value }))}
+              value={newForm.requestDetails}
+              onChange={(e) => setNewForm((p) => ({ ...p, requestDetails: e.target.value }))}
               rows={2}
               className={inputClass + " resize-y"}
             />

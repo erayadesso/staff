@@ -62,10 +62,10 @@ function parseDate(v: unknown): Date | null {
   return null;
 }
 
-/** Excel'deki statü adını SurecDurumu id'sine eşler; yoksa null döner. */
+/** Excel'deki statü adını ProcessStatus id'sine eşler; yoksa null döner. */
 async function surecDurumId(ad: string | null): Promise<string | null> {
   if (!ad) return null;
-  const d = await prisma.surecDurumu.findUnique({ where: { ad } });
+  const d = await prisma.processStatus.findUnique({ where: { name: ad } });
   return d?.id ?? null;
 }
 
@@ -76,8 +76,8 @@ async function main() {
   const wb = XLSX.readFile(filePath);
 
   // Talep No -> id haritası (net bağlantı için)
-  const talepler = await prisma.talep.findMany({ select: { id: true, talepNo: true } });
-  const talepByNo = new Map(talepler.map((t) => [t.talepNo, t.id]));
+  const talepler = await prisma.request.findMany({ select: { id: true, requestNo: true } });
+  const talepByNo = new Map(talepler.map((t) => [t.requestNo, t.id]));
 
   let baglanti = 0;
   let baglantisiz = 0;
@@ -103,24 +103,24 @@ async function main() {
       const talepNo = talepNoRaw ? Number(talepNoRaw) : NaN;
 
       const data = {
-        adayAdi,
+        candidateName: adayAdi,
         domain: stringVeyaNull(r[c.domain]),
-        talepDetaylari: stringVeyaNull(r[c.detay]),
+        requestDetails: stringVeyaNull(r[c.detay]),
         source: stringVeyaNull(r[c.source]),
-        surecDurumId: await surecDurumId(stringVeyaNull(r[c.durum])),
-        adayCost: stringVeyaNull(r[c.cost]),
-        iseBaslamaTarihi: c.iseBas !== null ? parseDate(r[c.iseBas]) : null,
+        processStatusId: await surecDurumId(stringVeyaNull(r[c.durum])),
+        cost: stringVeyaNull(r[c.cost]),
+        startDate: c.iseBas !== null ? parseDate(r[c.iseBas]) : null,
       };
 
       // Net bağlantı: talep no tabloda mevcut mu?
       const talepId = !Number.isNaN(talepNo) ? talepByNo.get(talepNo) : undefined;
 
       if (talepId) {
-        await prisma.aday.create({ data: { ...data, talepId } });
+        await prisma.candidate.create({ data: { ...data, requestId: talepId } });
         baglanti++;
       } else {
-        await prisma.aday.create({
-          data: { ...data, talepId: null, firmaAd: firmaAdiIcın(sheetAd) },
+        await prisma.candidate.create({
+          data: { ...data, requestId: null, clientName: firmaAdiIcın(sheetAd) },
         });
         baglantisiz++;
       }

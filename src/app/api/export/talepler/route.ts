@@ -17,13 +17,13 @@ export async function GET() {
     return NextResponse.json({ error: "Giriş yapmalısınız." }, { status: 401 });
   }
 
-  const talepler = await prisma.talep.findMany({
+  const requests = await prisma.request.findMany({
     include: {
-      isBirimi: { include: { firma: true } },
-      durum: { select: { ad: true, ton: true } },
-      adaylar: { include: { surecDurum: { select: { ad: true, ton: true } } } },
+      department: { include: { company: true } },
+      status: { select: { name: true, ton: true } },
+      candidates: { include: { processStatus: { select: { name: true, ton: true } } } },
     },
-    orderBy: { talepNo: "asc" },
+    orderBy: { requestNo: "asc" },
   });
 
   const satirlar: string[][] = [
@@ -31,28 +31,28 @@ export async function GET() {
      "Durum", "Açık mı?", "Aday Sayısı", "Oluşturulma", "Müşteri Son Geçerlilik", "adesso Süresi", "Güncel Not"],
   ];
 
-  for (const t of talepler) {
-    const acik = !isKapaliDurum(t.durum) ? "Açık" : "Kapalı";
+  for (const r of requests) {
+    const acik = !isKapaliDurum(r.status) ? "Açık" : "Kapalı";
     satirlar.push([
-      String(t.talepNo),
-      t.isBirimi.firma.ad,
-      t.isBirimi.ad,
-      t.talepSahibi,
-      t.adayTuru,
-      t.adet ?? "",
-      t.durum?.ad ?? "",
+      String(r.requestNo),
+      r.department.company.name,
+      r.department.name,
+      r.requestOwner,
+      r.candidateType,
+      r.quantity ?? "",
+      r.status?.name ?? "",
       acik,
-      String(t.adaylar.length),
-      t.olusturulmaTarihi
-        ? new Date(t.olusturulmaTarihi).toLocaleDateString("tr-TR")
+      String(r.candidates.length),
+      r.createdAt
+        ? new Date(r.createdAt).toLocaleDateString("tr-TR")
         : "",
-      t.deadline
-        ? new Date(t.deadline).toLocaleDateString("tr-TR")
+      r.deadline
+        ? new Date(r.deadline).toLocaleDateString("tr-TR")
         : "",
-      t.adessoSuresi
-        ? new Date(t.adessoSuresi).toLocaleDateString("tr-TR")
+      r.adessoDuration
+        ? new Date(r.adessoDuration).toLocaleDateString("tr-TR")
         : "",
-      t.guncelNot ?? "",
+      r.currentNote ?? "",
     ]);
   }
 
@@ -61,18 +61,18 @@ export async function GET() {
   satirlar.push([
     "Talep No", "Firma", "Aday", "Domain", "Source", "Süreç Durumu", "Aday Cost", "İşe Başlama",
   ]);
-  for (const t of talepler) {
-    for (const a of t.adaylar) {
+  for (const r of requests) {
+    for (const a of r.candidates) {
       satirlar.push([
-        String(t.talepNo),
-        t.isBirimi.firma.ad,
-        a.adayAdi,
+        String(r.requestNo),
+        r.department.company.name,
+        a.candidateName,
         a.domain ?? "",
         a.source ?? "",
-        a.surecDurum?.ad ?? "",
-        a.adayCost ?? "",
-        a.iseBaslamaTarihi
-          ? new Date(a.iseBaslamaTarihi).toLocaleDateString("tr-TR")
+        a.processStatus?.name ?? "",
+        a.cost ?? "",
+        a.startDate
+          ? new Date(a.startDate).toLocaleDateString("tr-TR")
           : "",
       ]);
     }

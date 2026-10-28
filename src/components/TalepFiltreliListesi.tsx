@@ -7,17 +7,17 @@ import { talepStatuAmblem, talepStatuRenk, type StatuNesne } from "@/lib/domain"
 
 interface Talep {
   id: string;
-  talepNo: number;
-  talepSahibi: string;
-  adayTuru: string;
-  adet: string | null;
-  durum: StatuNesne | null;
-  firmaAd: string;
-  firmaLogo: string | null;
-  birimAd: string;
-  adaylar: { id: string; adayAdi: string; surecDurum: StatuNesne | null; iseBaslamaTarihi: Date | null }[];
-  adaySayisi: number;
-  olusturulmaTarihi: Date;
+  requestNo: number;
+  requestOwner: string;
+  candidateType: string;
+  quantity: string | null;
+  status: StatuNesne | null;
+  companyName: string;
+  companyLogo: string | null;
+  departmentName: string;
+  candidates: { id: string; candidateName: string; processStatus: StatuNesne | null; startDate: Date | null }[];
+  candidateCount: number;
+  createdAt: Date;
   deadline: Date | null;
   yasi: number;
   deadlineGectiMi: boolean;
@@ -54,7 +54,7 @@ export default function TalepFiltreliListesi({
   }
 
   const firmalar = useMemo(
-    () => Array.from(new Set(talepler.map((t) => t.firmaAd))).sort(),
+    () => Array.from(new Set(talepler.map((t) => t.companyName))).sort(),
     [talepler]
   );
 
@@ -74,7 +74,7 @@ export default function TalepFiltreliListesi({
   const durumSayilari = useMemo(() => {
     const map = new Map<string, number>();
     for (const t of talepler) {
-      const id = t.durum?.id ?? "";
+      const id = t.status?.id ?? "";
       map.set(id, (map.get(id) ?? 0) + 1);
     }
     return map;
@@ -84,25 +84,25 @@ export default function TalepFiltreliListesi({
   const durumlar = useMemo(() => {
     const seen = new Map<string, StatuNesne>();
     for (const t of talepler) {
-      if (t.durum?.id) seen.set(t.durum.id, t.durum);
+      if (t.status?.id) seen.set(t.status.id, t.status);
     }
     return Array.from(seen.values()).sort((a, b) =>
-      (a.ad ?? "").localeCompare(b.ad ?? "")
+      (a.name ?? "").localeCompare(b.name ?? "")
     );
   }, [talepler]);
 
   const filtreli = useMemo(() => {
     const q = arama.trim().toLowerCase();
     return talepler.filter((t) => {
-      if (seciliFirmalar.length > 0 && !seciliFirmalar.includes(t.firmaAd)) return false;
-      if (seciliDurumlar.length > 0 && !(t.durum?.id && seciliDurumlar.includes(t.durum.id)))
+      if (seciliFirmalar.length > 0 && !seciliFirmalar.includes(t.companyName)) return false;
+      if (seciliDurumlar.length > 0 && !(t.status?.id && seciliDurumlar.includes(t.status.id)))
         return false;
       if (
         q &&
         !(
-          t.adayTuru.toLowerCase().includes(q) ||
-          t.talepSahibi.toLowerCase().includes(q) ||
-          t.birimAd.toLowerCase().includes(q)
+          t.candidateType.toLowerCase().includes(q) ||
+          t.requestOwner.toLowerCase().includes(q) ||
+          t.departmentName.toLowerCase().includes(q)
         )
       )
         return false;
@@ -110,14 +110,14 @@ export default function TalepFiltreliListesi({
     });
   }, [talepler, seciliFirmalar, seciliDurumlar, arama]);
 
-  const toplamAday = filtreli.reduce((s, t) => s + t.adaySayisi, 0);
+  const toplamAday = filtreli.reduce((s, t) => s + t.candidateCount, 0);
   const aktifTalep = filtreli.filter((t) => !t.basariylaKapandi).length;
 
 
-  function getProgressBar(adaySayisi: number, adet: string | null) {
-    const hedef = parseInt(adet || "0", 10);
+  function getProgressBar(candidateCount: number, quantity: string | null) {
+    const hedef = parseInt(quantity || "0", 10);
     if (!hedef || hedef <= 0) return null;
-    const pct = Math.min(Math.round((adaySayisi / hedef) * 100), 100);
+    const pct = Math.min(Math.round((candidateCount / hedef) * 100), 100);
     const renk = pct === 100 ? "bg-emerald-500" : pct >= 50 ? "bg-blue-500" : "bg-amber-500";
     return { pct, renk };
   }
@@ -149,25 +149,25 @@ export default function TalepFiltreliListesi({
         let valB: string | number | Date;
 
         switch (sortColumn) {
-          case "talepNo":
-            valA = a.talepNo;
-            valB = b.talepNo;
+          case "requestNo":
+            valA = a.requestNo;
+            valB = b.requestNo;
             break;
-          case "firmaAd":
-            valA = a.firmaAd.toLowerCase();
-            valB = b.firmaAd.toLowerCase();
+          case "companyName":
+            valA = a.companyName.toLowerCase();
+            valB = b.companyName.toLowerCase();
             break;
-          case "talepSahibi":
-            valA = a.talepSahibi.toLowerCase();
-            valB = b.talepSahibi.toLowerCase();
+          case "requestOwner":
+            valA = a.requestOwner.toLowerCase();
+            valB = b.requestOwner.toLowerCase();
             break;
-          case "adayTuru":
-            valA = a.adayTuru.toLowerCase();
-            valB = b.adayTuru.toLowerCase();
+          case "candidateType":
+            valA = a.candidateType.toLowerCase();
+            valB = b.candidateType.toLowerCase();
             break;
-          case "olusturulmaTarihi":
-            valA = a.olusturulmaTarihi.getTime();
-            valB = b.olusturulmaTarihi.getTime();
+          case "createdAt":
+            valA = a.createdAt.getTime();
+            valB = b.createdAt.getTime();
             break;
           case "yasi":
             valA = a.yasi;
@@ -177,9 +177,9 @@ export default function TalepFiltreliListesi({
             valA = a.deadline?.getTime() || 0;
             valB = b.deadline?.getTime() || 0;
             break;
-          case "durumAdi":
-            valA = a.durum?.ad?.toLowerCase() ?? "";
-            valB = b.durum?.ad?.toLowerCase() ?? "";
+          case "statusAdi":
+            valA = a.status?.name?.toLowerCase() ?? "";
+            valB = b.status?.name?.toLowerCase() ?? "";
             break;
           default:
             return 0;
@@ -269,7 +269,7 @@ export default function TalepFiltreliListesi({
               <div className="flex flex-wrap gap-2">
                 {firmalar.map((firmaAdi) => {
                   const secili = seciliFirmalar.includes(firmaAdi);
-                  const talepSayisi = talepler.filter((t) => t.firmaAd === firmaAdi).length;
+                  const talepSayisi = talepler.filter((t) => t.companyName === firmaAdi).length;
                   return (
                     <button
                       key={firmaAdi}
@@ -294,8 +294,8 @@ export default function TalepFiltreliListesi({
           {seciliFirmalar.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {seciliFirmalar.map((firmaAdi) => {
-                const firmaTalepleri = talepler.filter((t) => t.firmaAd === firmaAdi);
-                const logo = firmaTalepleri.find((t) => t.firmaLogo)?.firmaLogo;
+                const firmaTalepleri = talepler.filter((t) => t.companyName === firmaAdi);
+                const logo = firmaTalepleri.find((t) => t.companyLogo)?.companyLogo;
                 return (
                   <span
                     key={firmaAdi}
@@ -359,7 +359,7 @@ export default function TalepFiltreliListesi({
                 >
                   {amblem && <span aria-hidden>{amblem}</span>}
                   {amblem && " "}
-                  {d.ad || "—"}
+                  {d.name || "—"}
                   <span className="ml-1 opacity-70">
                     {durumSayilari.get(d.id ?? "")}
                   </span>
@@ -375,7 +375,7 @@ export default function TalepFiltreliListesi({
       {gorunum === "kart" && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtreli.map((t) => {
-            const prog = getProgressBar(t.adaySayisi, t.adet);
+            const prog = getProgressBar(t.candidateCount, t.quantity);
             return (
               <Link
                 key={t.id}
@@ -386,9 +386,9 @@ export default function TalepFiltreliListesi({
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-semibold text-blue-600 dark:text-blue-400">
-                        #{t.talepNo}
+                        #{t.requestNo}
                       </span>
-                      <TalepStatuBadge durum={t.durum} />
+                      <TalepStatuBadge durum={t.status} />
                       {t.deadlineGectiMi && (
                         <span
                           className="inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-800"
@@ -399,25 +399,25 @@ export default function TalepFiltreliListesi({
                       )}
                     </div>
                     <div className="mt-2 flex items-center gap-2">
-                      {t.firmaLogo ? (
+                      {t.companyLogo ? (
                         <img
-                          src={t.firmaLogo}
-                          alt={t.firmaAd}
+                          src={t.companyLogo}
+                          alt={t.companyName}
                           loading="lazy"
                           referrerPolicy="no-referrer"
                           className="h-5 w-5 shrink-0 rounded object-contain"
                         />
                       ) : (
                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-200 text-[10px] font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                          {t.firmaAd.charAt(0).toUpperCase()}
+                          {t.companyName.charAt(0).toUpperCase()}
                         </span>
                       )}
                       <h3 className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-blue-600 dark:group-hover:text-blue-400">
-                        {t.adayTuru}
+                        {t.candidateType}
                       </h3>
                     </div>
                     <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                      {t.firmaAd} · {t.birimAd}
+                      {t.companyName} · {t.departmentName}
                     </p>
                   </div>
                   <div className="shrink-0 text-right">
@@ -430,10 +430,10 @@ export default function TalepFiltreliListesi({
                 <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
                   <span className="inline-flex items-center gap-1" title="Oluşturulma">
                     <span aria-hidden>📅</span>
-                    {fmtDate(t.olusturulmaTarihi)}
+                    {fmtDate(t.createdAt)}
                   </span>
-                  <span>{t.talepSahibi}</span>
-                  {t.adet && <span>Hedef: {t.adet}</span>}
+                  <span>{t.requestOwner}</span>
+                  {t.quantity && <span>Hedef: {t.quantity}</span>}
                   {t.deadline && (
                     <span className={t.deadlineGectiMi ? "text-red-600 dark:text-red-400" : ""}>
                       Son: {fmtDateShort(t.deadline)}
@@ -445,7 +445,7 @@ export default function TalepFiltreliListesi({
                 {prog && (
                   <div className="mt-3">
                     <div className="flex items-center justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                      <span>{t.adaySayisi}/{t.adet} aday</span>
+                      <span>{t.candidateCount}/{t.quantity} aday</span>
                       <span>%{prog.pct}</span>
                     </div>
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
@@ -457,24 +457,24 @@ export default function TalepFiltreliListesi({
                   </div>
                 )}
 
-                {t.adaySayisi > 0 && (
+                {t.candidateCount > 0 && (
                   <div className="mt-3">
                     <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-zinc-400 dark:text-zinc-500">
-                      Adaylar ({t.adaySayisi})
+                      Adaylar ({t.candidateCount})
                     </p>
                     <div className="flex flex-wrap gap-1">
-                      {t.adaylar.map((a) => (
+                      {t.candidates.map((a) => (
                         <span
                           key={a.id}
                           className={`inline-flex max-w-[140px] items-center gap-1 rounded px-1.5 py-0.5 text-[10px] ${
-                            a.iseBaslamaTarihi
+                            a.startDate
                               ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
                               : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
                           }`}
-                          title={`${a.adayAdi}${a.surecDurum?.ad ? ` — ${a.surecDurum.ad}` : ""}`}
+                          title={`${a.candidateName}${a.processStatus?.name ? ` — ${a.processStatus.name}` : ""}`}
                         >
-                          {a.adayAdi.split(" ")[0]}
-                          {a.surecDurum?.ad && <span className="text-zinc-400">·</span>}
+                          {a.candidateName.split(" ")[0]}
+                          {a.processStatus?.name && <span className="text-zinc-400">·</span>}
                         </span>
                       ))}
                     </div>
@@ -498,34 +498,34 @@ export default function TalepFiltreliListesi({
             <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
               <tr className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 <th
-                  onClick={() => handleSort("talepNo")}
+                  onClick={() => handleSort("requestNo")}
                   className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
                 >
-                  No{getSortIndicator("talepNo")}
+                  No{getSortIndicator("requestNo")}
                 </th>
                 <th
-                  onClick={() => handleSort("firmaAd")}
+                  onClick={() => handleSort("companyName")}
                   className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
                 >
-                  Firma / Birim{getSortIndicator("firmaAd")}
+                  Firma / Birim{getSortIndicator("companyName")}
                 </th>
                 <th
-                  onClick={() => handleSort("talepSahibi")}
+                  onClick={() => handleSort("requestOwner")}
                   className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
                 >
-                  Talep Sahibi{getSortIndicator("talepSahibi")}
+                  Talep Sahibi{getSortIndicator("requestOwner")}
                 </th>
                 <th
-                  onClick={() => handleSort("adayTuru")}
+                  onClick={() => handleSort("candidateType")}
                   className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
                 >
-                  Aday Türü{getSortIndicator("adayTuru")}
+                  Aday Türü{getSortIndicator("candidateType")}
                 </th>
                 <th
-                  onClick={() => handleSort("olusturulmaTarihi")}
+                  onClick={() => handleSort("createdAt")}
                   className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
                 >
-                  Oluşturulma{getSortIndicator("olusturulmaTarihi")}
+                  Oluşturulma{getSortIndicator("createdAt")}
                 </th>
                 <th className="px-4 py-3 font-medium">İlerleme</th>
                 <th
@@ -541,16 +541,16 @@ export default function TalepFiltreliListesi({
                   Deadline{getSortIndicator("deadline")}
                 </th>
                 <th
-                  onClick={() => handleSort("durumAdi")}
+                  onClick={() => handleSort("statusAdi")}
                   className="px-4 py-3 font-medium cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-200 transition select-none"
                 >
-                  Durum{getSortIndicator("durumAdi")}
+                  Durum{getSortIndicator("statusAdi")}
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
               {siraliTalepler.map((t) => {
-                const prog = getProgressBar(t.adaySayisi, t.adet);
+                const prog = getProgressBar(t.candidateCount, t.quantity);
                 return (
                   <tr
                     key={t.id}
@@ -561,40 +561,40 @@ export default function TalepFiltreliListesi({
                         href={`/dashboard/talepler/${t.id}`}
                         className="font-mono text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                       >
-                        #{t.talepNo}
+                        #{t.requestNo}
                       </Link>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        {t.firmaLogo ? (
+                        {t.companyLogo ? (
                           <img
-                            src={t.firmaLogo}
-                            alt={t.firmaAd}
+                            src={t.companyLogo}
+                            alt={t.companyName}
                             loading="lazy"
                             referrerPolicy="no-referrer"
                             className="h-6 w-6 shrink-0 rounded object-contain"
                           />
                         ) : (
                           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-zinc-200 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                            {t.firmaAd.charAt(0).toUpperCase()}
+                            {t.companyName.charAt(0).toUpperCase()}
                           </span>
                         )}
                         <div>
-                          <p className="font-medium text-zinc-800 dark:text-zinc-200">{t.firmaAd}</p>
-                          <p className="text-xs text-zinc-500">{t.birimAd}</p>
+                          <p className="font-medium text-zinc-800 dark:text-zinc-200">{t.companyName}</p>
+                          <p className="text-xs text-zinc-500">{t.departmentName}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{t.talepSahibi}</td>
-                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{t.adayTuru}</td>
+                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{t.requestOwner}</td>
+                    <td className="px-4 py-3 text-zinc-700 dark:text-zinc-300">{t.candidateType}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
-                      {fmtDate(t.olusturulmaTarihi)}
+                      {fmtDate(t.createdAt)}
                     </td>
                     <td className="px-4 py-3">
                       {prog ? (
                         <div className="w-24">
                           <div className="flex items-center justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                            <span>{t.adaySayisi}/{t.adet}</span>
+                            <span>{t.candidateCount}/{t.quantity}</span>
                             <span>%{prog.pct}</span>
                           </div>
                           <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
@@ -622,7 +622,7 @@ export default function TalepFiltreliListesi({
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <TalepStatuBadge durum={t.durum} />
+                      <TalepStatuBadge durum={t.status} />
                     </td>
                   </tr>
                 );

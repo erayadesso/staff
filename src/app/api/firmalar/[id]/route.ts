@@ -36,41 +36,41 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   }
 
   try {
-    const firma = await prisma.firma.findUnique({
+    const company = await prisma.company.findUnique({
       where: { id },
-      include: { isBirimleri: true },
+      include: { departments: true },
     });
-    if (!firma) {
+    if (!company) {
       return NextResponse.json({ error: "Firma bulunamadı." }, { status: 404 });
     }
 
-    const yeniFirma = await prisma.$transaction(async (tx) => {
-      const data: { ad?: string; logoUrl?: string | null } = {};
-      if (ad) data.ad = ad;
+    const updated = await prisma.$transaction(async (tx) => {
+      const data: { name?: string; logoUrl?: string | null } = {};
+      if (ad) data.name = ad;
       if ("logoUrl" in body) data.logoUrl = body.logoUrl;
 
-      const guncellenen = await tx.firma.update({
+      const updatedCompany = await tx.company.update({
         where: { id },
         data,
       });
 
-      const eskiAd = firma.ad;
+      const eskiAd = company.name;
       if (ad && eskiAd !== ad) {
-        const ayniAdliBirimler = await tx.isBirimi.findMany({
-          where: { firmaId: id, ad: eskiAd },
+        const ayniAdliBirimler = await tx.department.findMany({
+          where: { companyId: id, name: eskiAd },
         });
         for (const b of ayniAdliBirimler) {
-          await tx.isBirimi.update({
+          await tx.department.update({
             where: { id: b.id },
-            data: { ad },
+            data: { name: ad },
           });
         }
       }
 
-      return guncellenen;
+      return updatedCompany;
     });
 
-    return NextResponse.json({ ok: true, firma: yeniFirma });
+    return NextResponse.json({ ok: true, company: updated });
   } catch (err) {
     console.error("Firma güncelleme hatası:", err);
     return NextResponse.json(
@@ -88,13 +88,13 @@ export async function DELETE(_request: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
 
   try {
-    const firma = await prisma.firma.findUnique({ where: { id } });
-    if (!firma) {
+    const company = await prisma.company.findUnique({ where: { id } });
+    if (!company) {
       return NextResponse.json({ error: "Firma bulunamadı." }, { status: 404 });
     }
 
-    const talepSayisi = await prisma.talep.count({
-      where: { isBirimi: { firmaId: id } },
+    const talepSayisi = await prisma.request.count({
+      where: { department: { companyId: id } },
     });
     if (talepSayisi > 0) {
       return NextResponse.json(
@@ -104,8 +104,8 @@ export async function DELETE(_request: NextRequest, ctx: Ctx) {
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.isBirimi.deleteMany({ where: { firmaId: id } });
-      await tx.firma.delete({ where: { id } });
+      await tx.department.deleteMany({ where: { companyId: id } });
+      await tx.company.delete({ where: { id } });
     });
 
     return NextResponse.json({ ok: true });

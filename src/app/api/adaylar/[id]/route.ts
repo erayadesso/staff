@@ -13,11 +13,11 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   const { id } = await ctx.params;
 
   let body: {
-    adayAdi?: string;
-    surecDurumId?: string | null;
+    candidateName?: string;
+    processStatusId?: string | null;
     source?: string | null;
-    adayCost?: string | null;
-    iseBaslamaTarihi?: string | null;
+    cost?: string | null;
+    startDate?: string | null;
   };
   try {
     body = await request.json();
@@ -25,40 +25,40 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const existing = await prisma.aday.findUnique({ where: { id } });
+  const existing = await prisma.candidate.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Aday bulunamadı." }, { status: 404 });
   }
 
-  let iseBaslama: Date | null | undefined;
-  if (body.iseBaslamaTarihi !== undefined) {
-    iseBaslama = null;
-    if (body.iseBaslamaTarihi) {
-      const d = new Date(body.iseBaslamaTarihi);
-      if (!Number.isNaN(d.getTime())) iseBaslama = d;
+  let startDate: Date | null | undefined;
+  if (body.startDate !== undefined) {
+    startDate = null;
+    if (body.startDate) {
+      const d = new Date(body.startDate);
+      if (!Number.isNaN(d.getTime())) startDate = d;
     }
   }
 
-  const aday = await prisma.aday.update({
+  const candidate = await prisma.candidate.update({
     where: { id },
     data: {
-      ...(body.adayAdi !== undefined && { adayAdi: body.adayAdi }),
-      ...(body.surecDurumId !== undefined && {
-        surecDurumId: body.surecDurumId || null,
+      ...(body.candidateName !== undefined && { candidateName: body.candidateName }),
+      ...(body.processStatusId !== undefined && {
+        processStatusId: body.processStatusId || null,
       }),
       ...(body.source !== undefined && { source: body.source }),
-      ...(body.adayCost !== undefined && { adayCost: body.adayCost }),
-      ...(iseBaslama !== undefined && { iseBaslamaTarihi: iseBaslama }),
+      ...(body.cost !== undefined && { cost: body.cost }),
+      ...(startDate !== undefined && { startDate }),
     },
   });
 
   // Aday statüsü değiştiyse talebin statüsünü otomatik güncelle
-  if (body.surecDurumId !== undefined && aday.talepId) {
-    await talepDurumunuGuncelle(aday.talepId);
+  if (body.processStatusId !== undefined && candidate.requestId) {
+    await talepDurumunuGuncelle(candidate.requestId);
   }
 
 
-  return NextResponse.json({ ok: true, aday });
+  return NextResponse.json({ ok: true, candidate });
 }
 
 export async function DELETE(_req: NextRequest, ctx: Ctx) {
@@ -68,17 +68,17 @@ export async function DELETE(_req: NextRequest, ctx: Ctx) {
   }
   const { id } = await ctx.params;
 
-  const existing = await prisma.aday.findUnique({ where: { id } });
+  const existing = await prisma.candidate.findUnique({ where: { id } });
   if (!existing) {
     return NextResponse.json({ error: "Aday bulunamadı." }, { status: 404 });
   }
 
-  const talepId = existing.talepId;
-  await prisma.aday.delete({ where: { id } });
+  const request_id = existing.requestId;
+  await prisma.candidate.delete({ where: { id } });
 
   // Aday silindikten sonra talebin statüsünü otomatik güncelle
-  if (talepId) {
-    await talepDurumunuGuncelle(talepId);
+  if (request_id) {
+    await talepDurumunuGuncelle(request_id);
   }
 
 

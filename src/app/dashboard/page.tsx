@@ -10,32 +10,32 @@ import LoadingMessage from "@/components/LoadingMessage";
 
 export const dynamic = "force-dynamic";
 
-async function getFilteredTalepler(showCancelled: boolean) {
+async function getFilteredRequests(showCancelled: boolean) {
   const aktifTalepTonlari = ["yeni", "ic", "dis", "gorsme", "secim", "kabul", "karsilandi"];
-  return prisma.talep.findMany({
+  return prisma.request.findMany({
     where: showCancelled ? undefined : {
-      durum: {
+      status: {
         ton: { in: aktifTalepTonlari },
       },
     },
     include: {
-      isBirimi: {
+      department: {
         select: {
-          ad: true,
-          firmaId: true,
-          firma: { select: { ad: true, logoUrl: true } },
+          name: true,
+          companyId: true,
+          company: { select: { name: true, logoUrl: true } },
         },
       },
-      durum: { select: { id: true, ad: true, sira: true, ton: true } },
-      adaylar: {
+      status: { select: { id: true, name: true, order: true, ton: true } },
+      candidates: {
         select: {
           id: true,
-          adayAdi: true,
-          surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
+          candidateName: true,
+          processStatus: { select: { id: true, name: true, order: true, ton: true } },
         },
       },
     },
-    orderBy: { talepNo: "desc" },
+    orderBy: { requestNo: "desc" },
   });
 }
 
@@ -56,44 +56,44 @@ export default async function DashboardPage({
   const showCancelled = params.showCancelled === 'true';
 
   const bugun = new Date();
-  const [talepler, firmalar, surecDurumlari] = await Promise.all([
-    getFilteredTalepler(showCancelled),
-    prisma.firma.findMany({ orderBy: { ad: "asc" } }),
-    prisma.surecDurumu.findMany({ orderBy: { sira: "asc" } }),
+  const [requests, companies, processStatuses] = await Promise.all([
+    getFilteredRequests(showCancelled),
+    prisma.company.findMany({ orderBy: { name: "asc" } }),
+    prisma.processStatus.findMany({ orderBy: { order: "asc" } }),
   ]);
 
   // KPI
   const aktifTalepTonlari = new Set<string>(["yeni", "ic", "dis", "gorsme", "secim", "kabul"]);
-  const toplamTalep = talepler.length;
-  const aktifTalep = talepler.filter((t) => aktifTalepTonlari.has(statununTonu(t.durum))).length;
-  const basariylaKapandiTalep = talepler.filter((t) => {
-    const hedef = parseInt(t.adet || "0", 10);
+  const toplamTalep = requests.length;
+  const aktifTalep = requests.filter((r) => aktifTalepTonlari.has(statununTonu(r.status))).length;
+  const basariylaKapandiTalep = requests.filter((r) => {
+    const hedef = parseInt(r.quantity || "0", 10);
     if (hedef <= 0) return false;
-    return t.adaylar.filter((a) => a.surecDurum?.ton === "karsilandi").length >= hedef;
+    return r.candidates.filter((a) => a.processStatus?.ton === "karsilandi").length >= hedef;
   }).length;
   const kapaliTalep = basariylaKapandiTalep;
-  const toplamAday = talepler.reduce((a, t) => a + t.adaylar.length, 0);
-  const iseBasanAday = talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ton === "karsilandi").length, 0);
-  const bekleyenAday = talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ton !== "karsilandi").length, 0);
+  const toplamAday = requests.reduce((a, r) => a + r.candidates.length, 0);
+  const iseBasanAday = requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.ton === "karsilandi").length, 0);
+  const bekleyenAday = requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.ton !== "karsilandi").length, 0);
 
   // Uyarılar
-  const gecikmis = talepler.filter((t) => deadlineGecti(t.durum, t.deadline));
-  const yaklasan = talepler.filter((t) => {
-    if (!t.deadline) return false;
-    const kalan = Math.ceil((t.deadline.getTime() - bugun.getTime()) / 86400000);
+  const gecikmis = requests.filter((r) => deadlineGecti(r.status, r.deadline));
+  const yaklasan = requests.filter((r) => {
+    if (!r.deadline) return false;
+    const kalan = Math.ceil((r.deadline.getTime() - bugun.getTime()) / 86400000);
     return kalan >= 0 && kalan <= 7;
   });
 
   // Firma analiz
-  const firmaAnaliz = firmalar.map((f) => {
-    const ft = talepler.filter((t) => t.isBirimi.firmaId === f.id);
-    const aktif = ft.filter((t) => !isKapaliDurum(t.durum?.ad || ""));
-    const toplamHedef = ft.reduce((a, t) => a + (parseInt(t.adet || "0") || 0), 0);
-    const mevcutAday = ft.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ton !== "karsilandi").length, 0);
+  const firmaAnaliz = companies.map((c) => {
+    const ft = requests.filter((r) => r.department.companyId === c.id);
+    const aktif = ft.filter((r) => !isKapaliDurum(r.status));
+    const toplamHedef = ft.reduce((a, r) => a + (parseInt(r.quantity || "0") || 0), 0);
+    const mevcutAday = ft.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.ton !== "karsilandi").length, 0);
     const doluluk = toplamHedef > 0 ? Math.round((mevcutAday / toplamHedef) * 100) : 0;
-    const gecikmisCount = ft.filter((t) => deadlineGecti(t.durum, t.deadline)).length;
+    const gecikmisCount = ft.filter((r) => deadlineGecti(r.status, r.deadline)).length;
     return {
-      firma: f.ad,
+      firma: c.name,
       toplamTalep: ft.length,
       aktifTalep: aktif.length,
       doluluk,
@@ -104,9 +104,9 @@ export default async function DashboardPage({
   }).filter((f) => f.toplamTalep > 0).sort((a, b) => b.toplamTalep - a.toplamTalep);
 
   // Grafige veriler
-  const durumDagilimi = surecDurumlari.map((s) => ({
-    name: s.ad,
-    value: talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ad === s.ad).length, 0),
+  const durumDagilimi = processStatuses.map((s) => ({
+    name: s.name,
+    value: requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.name === s.name).length, 0),
   })).filter((d) => d.value > 0);
 
   const firmaTalepBar = firmaAnaliz.map((f) => ({ name: f.firma.slice(0, 15), value: f.toplamTalep }));
@@ -122,13 +122,13 @@ export default async function DashboardPage({
   const trendData = Array.from({ length: 13 }, (_, i) => {
     const baslangic = new Date(bugun.getTime() - (90 - i * 7) * 86400000);
     const bitis = new Date(bugun.getTime() - (83 - i * 7) * 86400000);
-    const olusturan = talepler.filter((t) => {
-      const d = new Date(t.olusturulmaTarihi);
+    const olusturan = requests.filter((r) => {
+      const d = new Date(r.createdAt);
       return d >= baslangic && d < bitis;
     }).length;
-    const kapatilan = talepler.filter((t) => {
-      if (!isKapaliDurum(t.durum?.ad || "")) return false;
-      const d = new Date(t.olusturulmaTarihi);
+    const kapatilan = requests.filter((r) => {
+      if (!isKapaliDurum(r.status)) return false;
+      const d = new Date(r.createdAt);
       return d >= baslangic && d < bitis;
     }).length;
     const haftaNum = Math.floor((bugun.getTime() - baslangic.getTime()) / 86400000 / 7);
@@ -141,9 +141,9 @@ export default async function DashboardPage({
     };
   });
 
-  const pipelineData = surecDurumlari.map((s) => ({
-    name: s.ad.length > 20 ? s.ad.slice(0, 18) + "…" : s.ad,
-    value: talepler.reduce((a, t) => a + t.adaylar.filter((a) => a.surecDurum?.ad === s.ad).length, 0),
+  const pipelineData = processStatuses.map((s) => ({
+    name: s.name.length > 20 ? s.name.slice(0, 18) + "…" : s.name,
+    value: requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.name === s.name).length, 0),
   })).filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
 
   const PIE_COLORS = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6"];
@@ -205,15 +205,15 @@ export default async function DashboardPage({
               Yaklaşan son tarihler — acil işlem gereklidir.
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {yaklasan.map((t) => {
-                const kalan = Math.ceil((t.deadline!.getTime() - bugun.getTime()) / 86400000);
+              {yaklasan.map((r) => {
+                const kalan = Math.ceil((r.deadline!.getTime() - bugun.getTime()) / 86400000);
                 return (
                   <Link
-                    key={t.id}
-                    href={`/dashboard/talepler/${t.id}`}
+                    key={r.id}
+                    href={`/dashboard/talepler/${r.id}`}
                     className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300 dark:hover:bg-amber-950/40 transition"
                   >
-                    #{t.talepNo} · {t.isBirimi.firma.ad} · {kalan} gün kaldı
+                    #{r.requestNo} · {r.department.name} · {kalan} gün kaldı
                   </Link>
                 );
               })}
@@ -339,34 +339,34 @@ export default async function DashboardPage({
           </Link>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {talepler.map((t) => {
-              const hedef = parseInt(t.adet || "0", 10);
-              const prog = hedef > 0 ? getProgressBar(Math.min(Math.round((t.adaylar.length / hedef) * 100), 100)) : null;
+          {requests.map((r) => {
+              const hedef = parseInt(r.quantity || "0", 10);
+              const prog = hedef > 0 ? getProgressBar(Math.min(Math.round((r.candidates.length / hedef) * 100), 100)) : null;
               return (
-                <div key={t.id} className="group overflow-hidden rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
+                <div key={r.id} className="group overflow-hidden rounded-xl border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">#{t.talepNo}</span>
-                        <TalepStatuBadge durum={t.durum} />
-                        {deadlineGecti(t.durum, t.deadline) && (
+                        <span className="font-mono text-xs font-bold text-blue-600 dark:text-blue-400">#{r.requestNo}</span>
+                        <TalepStatuBadge durum={r.status} />
+                        {deadlineGecti(r.status, r.deadline) && (
                           <span className="inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-800" title="Deadline geçti">
                             ⚠ geçti
                           </span>
                         )}
                       </div>
-                      <h3 className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{t.adayTuru}</h3>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{t.isBirimi.firma.ad} · {t.isBirimi.ad}</p>
+                      <h3 className="mt-1 truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{r.candidateType}</h3>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">{r.department.company.name} · {r.department.name}</p>
                     </div>
-                    <span className={`shrink-0 text-[10px] font-medium ${pozisyonYasi(t.olusturulmaTarihi) > 30 ? "text-red-600 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}>
-                      {pozisyonYasi(t.olusturulmaTarihi)} gün
+                    <span className={`shrink-0 text-[10px] font-medium ${pozisyonYasi(r.createdAt) > 30 ? "text-red-600 dark:text-red-400" : "text-zinc-500 dark:text-zinc-400"}`}>
+                      {pozisyonYasi(r.createdAt)} gün
                     </span>
                   </div>
 
                   {prog && hedef > 0 && (
                     <div className="mt-3">
                       <div className="flex items-center justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                        <span>{t.adaylar.length}/{hedef} aday</span>
+                        <span>{r.candidates.length}/{hedef} aday</span>
                         <span>%{prog.pct}</span>
                       </div>
                       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
@@ -376,22 +376,22 @@ export default async function DashboardPage({
                   )}
 
                   <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-                    <span>{t.talepSahibi}</span>
-                    {t.deadline && (
-                      <span className={deadlineGecti(t.durum, t.deadline) ? "text-red-600 dark:text-red-400" : ""}>
-                        DL: {fmtDateShort(t.deadline)}{deadlineGecti(t.durum, t.deadline) && " ⚠"}
+                    <span>{r.requestOwner}</span>
+                    {r.deadline && (
+                      <span className={deadlineGecti(r.status, r.deadline) ? "text-red-600 dark:text-red-400" : ""}>
+                        DL: {fmtDateShort(r.deadline)}{deadlineGecti(r.status, r.deadline) && " ⚠"}
                       </span>
                     )}
                   </div>
 
-                  {t.adaylar.length > 0 && (
+                  {r.candidates.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {t.adaylar.slice(0, 4).map((a) => (
-                        <span key={a.id} className="max-w-[100px] truncate rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" title={`${a.adayAdi}${a.surecDurum?.ad ? ` — ${a.surecDurum.ad}` : ""}`}>
-                          {a.adayAdi.split(" ")[0]}{a.surecDurum?.ad && <span className="text-zinc-400">·</span>}
+                      {r.candidates.slice(0, 4).map((a) => (
+                        <span key={a.id} className="max-w-[100px] truncate rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400" title={`${a.candidateName}${a.processStatus?.name ? ` — ${a.processStatus.name}` : ""}`}>
+                          {a.candidateName.split(" ")[0]}{a.processStatus?.name && <span className="text-zinc-400">·</span>}
                         </span>
                       ))}
-                      {t.adaylar.length > 4 && <span className="text-[10px] text-zinc-400">+{t.adaylar.length - 4}</span>}
+                      {r.candidates.length > 4 && <span className="text-[10px] text-zinc-400">+{r.candidates.length - 4}</span>}
                     </div>
                   )}
                 </div>

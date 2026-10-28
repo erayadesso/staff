@@ -9,31 +9,31 @@ export default async function BaglantisizAdaylarPage() {
   const user = await getSessionUser();
   if (!user) return null;
 
-  const [baglantisizlar, talepler] = await Promise.all([
-    prisma.aday.findMany({
-      where: { talepId: null },
+  const [baglantisizlar, requests] = await Promise.all([
+    prisma.candidate.findMany({
+      where: { requestId: null },
       select: {
         id: true,
-        adayAdi: true,
+        candidateName: true,
         domain: true,
         source: true,
-        surecDurum: { select: { id: true, ad: true, sira: true, ton: true } },
-        firmaAd: true,
+        processStatus: { select: { id: true, name: true, order: true, ton: true } },
+        clientName: true,
       },
-      orderBy: { firmaAd: "asc" },
+      orderBy: { clientName: "asc" },
     }),
-    prisma.talep.findMany({
+    prisma.request.findMany({
       include: {
-        isBirimi: { select: { firma: { select: { ad: true } } } },
+        department: { select: { company: { select: { name: true } } } },
       },
-      orderBy: { talepNo: "asc" },
+      orderBy: { requestNo: "asc" },
     }),
   ]);
 
   // Firma bazında gurupla
   const firmaGruplari = new Map<string, typeof baglantisizlar>();
   for (const a of baglantisizlar) {
-    const anahtar = a.firmaAd ?? "Bilinmeyen";
+    const anahtar = a.clientName ?? "Bilinmeyen";
     if (!firmaGruplari.has(anahtar)) firmaGruplari.set(anahtar, []);
     firmaGruplari.get(anahtar)!.push(a);
   }
@@ -70,7 +70,7 @@ export default async function BaglantisizAdaylarPage() {
               >
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <p className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                    {a.adayAdi}
+                    {a.candidateName}
                   </p>
                   {a.domain && (
                     <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
@@ -82,17 +82,17 @@ export default async function BaglantisizAdaylarPage() {
                       {a.source}
                     </span>
                   )}
-                  {a.surecDurum && (
-                    <AdayStatuBadge durum={a.surecDurum} />
+                  {a.processStatus && (
+                    <AdayStatuBadge durum={a.processStatus} />
                   )}
                 </div>
                 <AdayBagla
-                  adayId={a.id}
-                  talepler={talepler.map((t) => ({
-                    id: t.id,
-                    talepNo: t.talepNo,
-                    firmaAd: t.isBirimi.firma.ad,
-                    adayTuru: t.adayTuru,
+                  candidateId={a.id}
+                  requests={requests.map((r) => ({
+                    id: r.id,
+                    requestNo: r.requestNo,
+                    companyName: r.department.company.name,
+                    candidateType: r.candidateType,
                   }))}
                 />
               </li>

@@ -39,12 +39,12 @@ export async function POST(request: NextRequest) {
 
   try {
     if (body.tip === "talep") {
-      const sira = body.sira ?? (await prisma.talepDurumu.count());
-      const kayit = await prisma.talepDurumu.create({ data: { ad, sira, ton } });
+      const order = body.sira ?? (await prisma.requestStatus.count());
+      const kayit = await prisma.requestStatus.create({ data: { name: ad, order, ton } });
       return NextResponse.json({ ok: true, kayit }, { status: 201 });
     }
-    const sira = body.sira ?? (await prisma.surecDurumu.count());
-    const kayit = await prisma.surecDurumu.create({ data: { ad, sira, ton } });
+    const order = body.sira ?? (await prisma.processStatus.count());
+    const kayit = await prisma.processStatus.create({ data: { name: ad, order, ton } });
     return NextResponse.json({ ok: true, kayit }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Bu statü zaten mevcut." }, { status: 409 });
@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: "Tip, id ve ad zorunludur." }, { status: 400 });
   }
 
-  const data: { ad: string; ton?: string } = { ad: body.ad.trim() };
+  const data: { name: string; ton?: string } = { name: body.ad.trim() };
   if (body.ton !== undefined && body.ton !== null && body.ton.trim()) {
     const ton = body.ton.trim();
     data.ton = GECERLI_TONLAR.has(ton) ? ton : "varsayilan";
@@ -80,13 +80,13 @@ export async function PATCH(request: NextRequest) {
 
   try {
     if (body.tip === "talep") {
-      const kayit = await prisma.talepDurumu.update({
+      const kayit = await prisma.requestStatus.update({
         where: { id: body.id },
         data,
       });
       return NextResponse.json({ ok: true, kayit });
     }
-    const kayit = await prisma.surecDurumu.update({
+    const kayit = await prisma.processStatus.update({
       where: { id: body.id },
       data,
     });
@@ -112,9 +112,9 @@ export async function DELETE(request: NextRequest) {
 
   try {
     if (body.tip === "talep") {
-      await prisma.talepDurumu.delete({ where: { id: body.id } });
+      await prisma.requestStatus.delete({ where: { id: body.id } });
     } else {
-      await prisma.surecDurumu.delete({ where: { id: body.id } });
+      await prisma.processStatus.delete({ where: { id: body.id } });
     }
     return NextResponse.json({ ok: true });
   } catch {

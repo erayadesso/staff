@@ -5,28 +5,28 @@ import { useRouter } from "next/navigation";
 import { talepStatuAmblem, type StatuNesne } from "@/lib/domain";
 
 export default function TalepDurumu({
-  talepId,
-  mevcutDurumId,
-  guncelNot,
-  talepDurumlari,
+  requestId,
+  statusId,
+  currentNote,
+  requestStatuses,
 }: {
-  talepId: string;
-  mevcutDurumId: string | null;
-  guncelNot: string | null;
-  talepDurumlari: StatuNesne[];
+  requestId: string;
+  statusId: string | null;
+  currentNote: string | null;
+  requestStatuses: StatuNesne[];
 }) {
   const router = useRouter();
-  const [durum, setDurum] = useState(mevcutDurumId ?? "");
-  const [not, setNot] = useState(guncelNot ?? "");
+  const [durum, setDurum] = useState(statusId ?? "");
+  const [not, setNot] = useState(currentNote ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save() {
     setSaving(true);
     try {
-      await fetch(`/api/talepler/${talepId}`, {
+      await fetch(`/api/talepler/${requestId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ durumId: durum, guncelNot: not }),
+        body: JSON.stringify({ statusId: durum, currentNote: not }),
       });
       router.refresh();
     } finally {
@@ -49,9 +49,9 @@ export default function TalepDurumu({
             onChange={(e) => setDurum(e.target.value)}
             className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
           >
-            {talepDurumlari.map((d) => (
+            {requestStatuses.map((d) => (
               <option key={d.id} value={d.id ?? ""}>
-                {talepStatuAmblem(d)} {d.ad}
+                {talepStatuAmblem(d)} {d.name}
               </option>
             ))}
           </select>

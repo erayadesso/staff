@@ -10,14 +10,14 @@ export default async function FirmalarPage() {
   const user = await getSessionUser();
   if (!user) return null;
 
-  const firmalar = await prisma.firma.findMany({
+  const companies = await prisma.company.findMany({
     include: {
-      isBirimleri: {
-        include: { _count: { select: { talepler: true } } },
-        orderBy: { ad: "asc" },
+      departments: {
+        include: { _count: { select: { requests: true } } },
+        orderBy: { name: "asc" },
       },
     },
-    orderBy: { ad: "asc" },
+    orderBy: { name: "asc" },
   });
 
   return (
@@ -34,8 +34,8 @@ export default async function FirmalarPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <div className="space-y-4">
-            <FirmalarListesi firmalar={firmalar} isAdmin={user.role === "ADMIN"} />
-            {firmalar.length === 0 && (
+            <FirmalarListesi companies={companies} isAdmin={user.role === "ADMIN"} />
+            {companies.length === 0 && (
               <p className="rounded-2xl border border-zinc-200 bg-white p-6 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950">
                 Henüz firma eklenmemiş.{" "}
                 <Link

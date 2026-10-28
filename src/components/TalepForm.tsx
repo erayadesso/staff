@@ -4,41 +4,41 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StatuNesne } from "@/lib/domain";
 
-interface Birim {
+interface Department {
   id: string;
-  ad: string;
-  firmaAd: string;
+  name: string;
+  companyName: string;
 }
 
 export default function TalepForm({
-  birimler,
+  departments,
   yeniDurum,
 }: {
-  birimler: Birim[];
+  departments: Department[];
   yeniDurum: StatuNesne | null;
 }) {
   const router = useRouter();
-  const firmalar = Array.from(new Set(birimler.map((b) => b.firmaAd)));
+  const firmalar = Array.from(new Set(departments.map((d) => d.companyName)));
 
   const [firma, setFirma] = useState(firmalar[0] ?? "");
-  const [isBirimiId, setIsBirimiId] = useState("");
-  const [talepSahibi, setTalepSahibi] = useState("");
-  const [adayTuru, setAdayTuru] = useState("");
-  const [adet, setAdet] = useState("");
-  const [notlar, setNotlar] = useState("");
-  const [guncelNot, setGuncelNot] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
+  const [requestOwner, setRequestOwner] = useState("");
+  const [candidateType, setCandidateType] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [notes, setNotes] = useState("");
+  const [currentNote, setCurrentNote] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [adessoSuresi, setAdessoSuresi] = useState("");
+  const [adessoDuration, setAdessoDuration] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const seciliFirmaBirimleri = birimler.filter((b) => b.firmaAd === firma);
+  const seciliFirmaDepartmanlari = departments.filter((d) => d.companyName === firma);
 
   function firmaDegis(f: string) {
     setFirma(f);
     if (firmalar.includes(f)) {
-      const ilk = birimler.find((b) => b.firmaAd === f);
-      setIsBirimiId(ilk?.id ?? "");
+      const ilk = departments.find((d) => d.companyName === f);
+      setDepartmentId(ilk?.id ?? "");
     }
   }
 
@@ -51,15 +51,15 @@ export default function TalepForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          talepSahibi,
-          adayTuru,
-          adet,
-          notlar,
-          guncelNot,
-          durumId: yeniDurum?.id || null,
+          requestOwner,
+          candidateType,
+          quantity,
+          notes,
+          currentNote,
+          statusId: yeniDurum?.id || null,
           deadline: deadline || null,
-          adessoSuresi: adessoSuresi || null,
-          isBirimiId,
+          adessoDuration: adessoDuration || null,
+          departmentId,
         }),
       });
       const data = await res.json();
@@ -67,7 +67,7 @@ export default function TalepForm({
         setError(data.error ?? "Talep oluşturulamadı.");
         return;
       }
-      router.push(`/dashboard/talepler/${data.talep.id}`);
+      router.push(`/dashboard/talepler/${data.request.id}`);
       router.refresh();
     } catch {
       setError("Bir hata oluştu.");
@@ -104,15 +104,15 @@ export default function TalepForm({
         <div>
           <label className={labelClass}>İş Birimi</label>
           <select
-            value={isBirimiId}
-            onChange={(e) => setIsBirimiId(e.target.value)}
+            value={departmentId}
+            onChange={(e) => setDepartmentId(e.target.value)}
             required
             className={inputClass}
           >
             <option value="">Seçiniz</option>
-            {seciliFirmaBirimleri.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.ad}
+            {seciliFirmaDepartmanlari.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
               </option>
             ))}
           </select>
@@ -124,8 +124,8 @@ export default function TalepForm({
           <label className={labelClass}>Talep Sahibi</label>
           <input
             required
-            value={talepSahibi}
-            onChange={(e) => setTalepSahibi(e.target.value)}
+            value={requestOwner}
+            onChange={(e) => setRequestOwner(e.target.value)}
             className={inputClass}
           />
         </div>
@@ -133,8 +133,8 @@ export default function TalepForm({
           <label className={labelClass}>Aday Türü (Rol)</label>
           <input
             required
-            value={adayTuru}
-            onChange={(e) => setAdayTuru(e.target.value)}
+            value={candidateType}
+            onChange={(e) => setCandidateType(e.target.value)}
             className={inputClass}
             placeholder="Örn. Test Uzmanı"
           />
@@ -150,16 +150,16 @@ export default function TalepForm({
             min={1}
             max={100}
             step={1}
-            value={adet}
+            value={quantity}
             onChange={(e) => {
               const v = e.target.value;
               if (v === "") {
-                setAdet("");
+                setQuantity("");
                 return;
               }
               if (/^\d+$/.test(v)) {
                 const n = Number(v);
-                if (n >= 1 && n <= 100) setAdet(v);
+                if (n >= 1 && n <= 100) setQuantity(v);
               }
             }}
             className={inputClass}
@@ -179,8 +179,8 @@ export default function TalepForm({
           <label className={labelClass}>adesso Süresi (Hedef Tarih)</label>
           <input
             type="date"
-            value={adessoSuresi}
-            onChange={(e) => setAdessoSuresi(e.target.value)}
+            value={adessoDuration}
+            onChange={(e) => setAdessoDuration(e.target.value)}
             className={inputClass}
           />
         </div>
@@ -189,7 +189,7 @@ export default function TalepForm({
       <div className="rounded-lg bg-zinc-50 px-4 py-3 text-sm text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400">
         Durum:{" "}
         <span className="inline-flex rounded bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-          {yeniDurum?.ad || "—"}
+          {yeniDurum?.name || "—"}
         </span>{" "}
         (yeni talepler bu statüyle açılır)
       </div>
@@ -198,8 +198,8 @@ export default function TalepForm({
         <label className={labelClass}>Notlar</label>
         <textarea
           rows={3}
-          value={notlar}
-          onChange={(e) => setNotlar(e.target.value)}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
           className={inputClass}
         />
       </div>
@@ -208,8 +208,8 @@ export default function TalepForm({
         <label className={labelClass}>Güncel Not</label>
         <textarea
           rows={2}
-          value={guncelNot}
-          onChange={(e) => setGuncelNot(e.target.value)}
+          value={currentNote}
+          onChange={(e) => setCurrentNote(e.target.value)}
           className={inputClass}
         />
       </div>

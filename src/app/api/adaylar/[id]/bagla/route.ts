@@ -11,35 +11,35 @@ export async function PATCH(request: NextRequest, ctx: Ctx) {
   }
   const { id } = await ctx.params;
 
-  let body: { talepId?: string | null };
+  let body: { requestId?: string | null };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const aday = await prisma.aday.findUnique({ where: { id } });
-  if (!aday) {
+  const candidate = await prisma.candidate.findUnique({ where: { id } });
+  if (!candidate) {
     return NextResponse.json({ error: "Aday bulunamadı." }, { status: 404 });
   }
 
-  if (body.talepId) {
-    const talep = await prisma.talep.findUnique({
-      where: { id: body.talepId },
+  if (body.requestId) {
+    const request = await prisma.request.findUnique({
+      where: { id: body.requestId },
     });
-    if (!talep) {
+    if (!request) {
       return NextResponse.json({ error: "Talep bulunamadı." }, { status: 404 });
     }
   }
 
-  const guncel = await prisma.aday.update({
+  const guncel = await prisma.candidate.update({
     where: { id },
     data: {
-      talepId: body.talepId || null,
+      requestId: body.requestId || null,
       // Bağlandıktan sonra bağlantısız firma bağlamını temizle
-      firmaAd: body.talepId ? null : aday.firmaAd,
+      clientName: body.requestId ? null : candidate.clientName,
     },
   });
 
-  return NextResponse.json({ ok: true, aday: guncel });
+  return NextResponse.json({ ok: true, candidate: guncel });
 }

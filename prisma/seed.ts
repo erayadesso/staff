@@ -102,16 +102,15 @@ async function main() {
 
   // 2) Firma + İş Birimleri (idempotent)
   for (const [firmaAd, birimler] of Object.entries(FIRMA_IS_BIRIMLERI)) {
-    const firma = await prisma.firma.upsert({
-      where: { ad: firmaAd },
-      update: {},
-      create: { ad: firmaAd },
-    });
+    let firma = await prisma.company.findUnique({ where: { name: firmaAd } });
+    if (!firma) {
+      firma = await prisma.company.create({ data: { name: firmaAd } });
+    }
     for (const birimAd of birimler) {
-      await prisma.isBirimi.upsert({
-        where: { firmaId_ad: { firmaId: firma.id, ad: birimAd } },
+      await prisma.department.upsert({
+        where: { companyId_name: { companyId: firma.id, name: birimAd } },
         update: {},
-        create: { firmaId: firma.id, ad: birimAd },
+        create: { companyId: firma.id, name: birimAd },
       });
     }
   }
@@ -119,19 +118,19 @@ async function main() {
 
   // 3) Talep durumları
   for (let i = 0; i < TALEP_DURUMLARI.length; i++) {
-    await prisma.talepDurumu.upsert({
-      where: { ad: TALEP_DURUMLARI[i] },
-      update: { sira: i },
-      create: { ad: TALEP_DURUMLARI[i], sira: i },
+    await prisma.requestStatus.upsert({
+      where: { name: TALEP_DURUMLARI[i] },
+      update: { order: i },
+      create: { name: TALEP_DURUMLARI[i], order: i },
     });
   }
 
   // 4) Süreç durumları
   for (let i = 0; i < SUREC_DURUMLARI.length; i++) {
-    await prisma.surecDurumu.upsert({
-      where: { ad: SUREC_DURUMLARI[i] },
-      update: { sira: i },
-      create: { ad: SUREC_DURUMLARI[i], sira: i },
+    await prisma.processStatus.upsert({
+      where: { name: SUREC_DURUMLARI[i] },
+      update: { order: i },
+      create: { name: SUREC_DURUMLARI[i], order: i },
     });
   }
   console.log(`Talep durumu: ${TALEP_DURUMLARI.length}, Süreç durumu: ${SUREC_DURUMLARI.length}`);

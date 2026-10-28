@@ -3,20 +3,20 @@
 import { useRouter } from "next/navigation";
 
 export default function TalepSilButonu({
-  talepNo,
-  talepId,
+  requestNo,
+  requestId,
 }: {
-  talepNo: number;
-  talepId: string;
+  requestNo: number;
+  requestId: string;
 }) {
   const router = useRouter();
 
   return (
     <button
       onClick={async () => {
-        if (!confirm(`Talep #${talepNo} silinecek. Onaylıyor musunuz?`))
+        if (!confirm(`Talep #${requestNo} silinecek. Onaylıyor musunuz?`))
           return;
-        const res = await fetch(`/api/talepler/${talepId}`, {
+        const res = await fetch(`/api/talepler/${requestId}`, {
           method: "DELETE",
         });
         if (!res.ok) {
