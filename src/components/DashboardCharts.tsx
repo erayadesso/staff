@@ -1,16 +1,43 @@
 "use client";
 
+import { useState } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, AreaChart, Area, Legend } from "recharts";
 
 const PIE_COLORS = ["#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", "#f97316", "#eab308", "#22c55e", "#06b6d4", "#3b82f6"];
 
-export default function DashboardCharts({ durumDagilimi, firmaTalepBar, fillRateBar, trendData, pipelineData }: {
+type Period = "30" | "90" | "180" | "all";
+
+const PERIOD_LABELS: Record<Period, string> = {
+  "30": "30 gün",
+  "90": "90 gün",
+  "180": "180 gün",
+  "all": "Tümü",
+};
+
+export default function DashboardCharts({
+  durumDagilimi,
+  firmaTalepBar,
+  fillRateBar,
+  trendData30,
+  trendData90,
+  trendData180,
+  trendDataTumu,
+  pipelineData,
+}: {
   durumDagilimi: { name: string; value: number }[];
   firmaTalepBar: { name: string; value: number }[];
   fillRateBar: { firma: string; doluluk: number; renk: string }[];
-  trendData: { hafta: string; olusturan: number; kapatilan: number }[];
+  trendData30: { hafta: string; olusturan: number; kapatilan: number }[];
+  trendData90: { hafta: string; olusturan: number; kapatilan: number }[];
+  trendData180: { hafta: string; olusturan: number; kapatilan: number }[];
+  trendDataTumu: { hafta: string; olusturan: number; kapatilan: number }[];
   pipelineData: { name: string; value: number }[];
 }) {
+  const [period, setPeriod] = useState<Period>("90");
+
+  const trendData = period === "30" ? trendData30 : period === "90" ? trendData90 : period === "180" ? trendData180 : trendDataTumu;
+  const periodLabel = PERIOD_LABELS[period];
+
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-2">
@@ -83,7 +110,24 @@ export default function DashboardCharts({ durumDagilimi, firmaTalepBar, fillRate
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">Son 90 Gün — Talep Eğilimi</h3>
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Talep Eğilimi — {periodLabel}</h3>
+          <div className="flex gap-1 rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-700">
+            {(["30", "90", "180", "all"] as Period[]).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                  period === p
+                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                    : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                }`}
+              >
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>

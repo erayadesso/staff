@@ -98,29 +98,54 @@ export default async function DashboardPage() {
     renk: f.doluluk >= 80 ? "#10b981" : f.doluluk >= 50 ? "#f59e0b" : "#ef4444",
   }));
 
-  // Trend
-  const son90Gun = new Date(bugun.getTime() - 90 * 86400000);
-  const trendData = Array.from({ length: 13 }, (_, i) => {
-    const baslangic = new Date(bugun.getTime() - (90 - i * 7) * 86400000);
-    const bitis = new Date(bugun.getTime() - (83 - i * 7) * 86400000);
-    const olusturan = requests.filter((r) => {
-      const d = new Date(r.createdAt);
-      return d >= baslangic && d < bitis;
-    }).length;
-    const kapatilan = requests.filter((r) => {
-      if (!isKapaliDurum(r.status)) return false;
-      const d = new Date(r.createdAt);
-      return d >= baslangic && d < bitis;
-    }).length;
-    const haftaNum = Math.floor((bugun.getTime() - baslangic.getTime()) / 86400000 / 7);
-    const gun = baslangic.getDate();
-    const ay = baslangic.toLocaleString("tr-TR", { month: "short" });
-    return {
-      hafta: `${gun} ${ay}`,
-      olusturan,
-      kapatilan,
-    };
-  });
+  // Trend hesaplama yardımcı fonksiyon
+  function hesaplaTrend(gunSayisi: number) {
+    if (gunSayisi === -1) {
+      // Tümü — tüm veriyi haftalık grupla
+      if (requests.length === 0) return [];
+      const ilkTarih = new Date(Math.min(...requests.map((r) => new Date(r.createdAt).getTime())));
+      const gunFark = Math.ceil((bugun.getTime() - ilkTarih.getTime()) / 86400000);
+      const haftaSayisi = Math.ceil(gunFark / 7);
+      return Array.from({ length: Math.min(haftaSayisi, 52) }, (_, i) => {
+        const baslangic = new Date(bugun.getTime() - (gunFark - i * 7) * 86400000);
+        const bitis = new Date(bugun.getTime() - (gunFark - (i + 1) * 7) * 86400000);
+        const olusturan = requests.filter((r) => {
+          const d = new Date(r.createdAt);
+          return d >= bitis && d < baslangic;
+        }).length;
+        const kapatilan = requests.filter((r) => {
+          if (!isKapaliDurum(r.status)) return false;
+          const d = new Date(r.createdAt);
+          return d >= bitis && d < baslangic;
+        }).length;
+        const gun = baslangic.getDate();
+        const ay = baslangic.toLocaleString("tr-TR", { month: "short" });
+        return { hafta: `${gun} ${ay}`, olusturan, kapatilan };
+      }).reverse();
+    }
+    const gunler = Array.from({ length: gunSayisi }, (_, i) => i + 1);
+    return gunler.map((_, i) => {
+      const baslangic = new Date(bugun.getTime() - (gunSayisi - i * 7) * 86400000);
+      const bitis = new Date(bugun.getTime() - (gunSayisi - (i + 1) * 7) * 86400000);
+      const olusturan = requests.filter((r) => {
+        const d = new Date(r.createdAt);
+        return d >= bitis && d < baslangic;
+      }).length;
+      const kapatilan = requests.filter((r) => {
+        if (!isKapaliDurum(r.status)) return false;
+        const d = new Date(r.createdAt);
+        return d >= bitis && d < baslangic;
+      }).length;
+      const gun = baslangic.getDate();
+      const ay = baslangic.toLocaleString("tr-TR", { month: "short" });
+      return { hafta: `${gun} ${ay}`, olusturan, kapatilan };
+    });
+  }
+
+  const trendData30 = hesaplaTrend(30);
+  const trendData90 = hesaplaTrend(90);
+  const trendData180 = hesaplaTrend(180);
+  const trendDataTumu = hesaplaTrend(-1);
 
   const pipelineData = processStatuses.map((s) => ({
     name: s.name.length > 20 ? s.name.slice(0, 18) + "…" : s.name,
@@ -206,7 +231,10 @@ export default async function DashboardPage() {
         durumDagilimi={durumDagilimi}
         firmaTalepBar={firmaTalepBar}
         fillRateBar={fillRateBar}
-        trendData={trendData}
+        trendData30={trendData30}
+        trendData90={trendData90}
+        trendData180={trendData180}
+        trendDataTumu={trendDataTumu}
         pipelineData={pipelineData}
       />
 
