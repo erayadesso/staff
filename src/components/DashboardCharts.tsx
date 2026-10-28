@@ -38,6 +38,8 @@ export default function DashboardCharts({
   const trendData = period === "30" ? trendData30 : period === "90" ? trendData90 : period === "180" ? trendData180 : trendDataTumu;
   const periodLabel = PERIOD_LABELS[period];
 
+  console.log("[Charts]", { period, trendDataLen: trendData.length, firstItem: trendData[0], all30: trendData30.length, all90: trendData90.length, all180: trendData180.length, allTumu: trendDataTumu.length });
+
   return (
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-2">
