@@ -34,6 +34,9 @@ export default async function TalepDetayPage({
       },
       status: { select: { id: true, name: true, order: true, ton: true } },
       createdBy: { select: { name: true, email: true } },
+      domain: {
+        select: { id: true, name: true, parent: { select: { id: true, name: true } } },
+      },
       candidates: {
         select: {
           id: true,
@@ -183,6 +186,22 @@ export default async function TalepDetayPage({
                   {request.createdBy?.name ?? "—"}
                 </dd>
               </div>
+              {request.domain && (
+                <div>
+                  <dt className="text-xs text-zinc-500">Yetkinlik Merkezi</dt>
+                  <dd className="font-medium text-zinc-800 dark:text-zinc-200">
+                    {request.domain.parent ? (
+                      <>
+                        <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                          {request.domain.parent.name}
+                        </span>{" "}
+                        →{" "}
+                      </>
+                    ) : null}
+                    {request.domain.name}
+                  </dd>
+                </div>
+              )}
             </dl>
             {request.notes && (
               <div className="mt-4">
