@@ -73,19 +73,27 @@ export default async function DashboardPage() {
   // Firma analiz
   const firmaAnaliz = companies.map((c) => {
     const ft = requests.filter((r) => r.department.companyId === c.id);
-    const aktif = ft.filter((r) => !isKapaliDurum(r.status));
-    const toplamHedef = ft.reduce((a, r) => a + (parseInt(r.quantity || "0") || 0), 0);
-    const mevcutAday = ft.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.ton !== "karsilandi").length, 0);
-    const doluluk = toplamHedef > 0 ? Math.round((mevcutAday / toplamHedef) * 100) : 0;
+    const basariliTalep = ft.filter((r) => isBasariKapatildi(r.candidates, r.quantity)).length;
+    const aktifTalep = ft.filter((r) => !isKapaliDurum(r.status) && !isBasariKapatildi(r.candidates, r.quantity)).length;
+    const iptalTalep = ft.filter((r) => {
+      const rStatusTon = statununTonu(r.status);
+      return rStatusTon === "kapandi" && !isBasariKapatildi(r.candidates, r.quantity);
+    }).length;
+    const hedefToplam = ft.reduce((a, r) => a + (parseInt(r.quantity || "0") || 0), 0);
+    const iseBaslayanAday = ft.reduce((a, r) => a + r.candidates.filter((ca) => ca.processStatus?.ton === "karsilandi").length, 0);
+    const doluluk = hedefToplam > 0 ? Math.round((iseBaslayanAday / hedefToplam) * 100) : 0;
     const gecikmisCount = ft.filter((r) => !isBasariKapatildi(r.candidates, r.quantity) && deadlineGecti(r.status, r.deadline)).length;
     return {
       firma: c.name,
+      logoUrl: c.logoUrl,
       toplamTalep: ft.length,
-      aktifTalep: aktif.length,
+      basariliTalep,
+      aktifTalep,
+      iptalTalep,
       doluluk,
       gecikmis: gecikmisCount,
-      hedef: toplamHedef,
-      mevcut: mevcutAday,
+      hedef: hedefToplam,
+      iseBaslayan: iseBaslayanAday,
     };
   }).filter((f) => f.toplamTalep > 0).sort((a, b) => b.toplamTalep - a.toplamTalep);
 
@@ -350,31 +358,44 @@ export default async function DashboardPage() {
               <tr className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                 <th className="px-4 py-3 font-medium">Firma</th>
                 <th className="px-4 py-3 font-medium text-center">Talep</th>
-                <th className="px-4 py-3 font-medium text-center">Aktif</th>
-                <th className="px-4 py-3 font-medium text-center">Aday</th>
-                <th className="px-4 py-3 font-medium">Hedef / Doluluk</th>
-                <th className="px-4 py-3 font-medium">Geçen Deadline</th>
+                <th className="px-4 py-3 font-medium text-center">Başarılı</th>
+                <th className="px-4 py-3 font-medium text-center">Açık</th>
+                <th className="px-4 py-3 font-medium text-center">İptal</th>
+                <th className="px-4 py-3 font-medium">Hedef / İşe Başlama</th>
+                <th className="px-4 py-3 font-medium text-center">Geçen Deadline</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
               {firmaAnaliz.map((f) => (
                 <tr key={f.firma} className="transition hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
                   <td className="px-4 py-4">
-                    <p className="font-semibold text-zinc-900 dark:text-zinc-100">{f.firma}</p>
+                    <div className="flex items-center gap-3">
+                      {f.logoUrl ? (
+                        <img src={f.logoUrl} alt={f.firma} className="h-8 w-8 rounded object-contain" />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded bg-zinc-100 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                          {f.firma.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <p className="font-semibold text-zinc-900 dark:text-zinc-100">{f.firma}</p>
+                    </div>
                   </td>
                   <td className="px-4 py-4 text-center">
                     <span className="rounded-lg bg-zinc-100 px-2 py-1 font-semibold text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">{f.toplamTalep}</span>
                   </td>
                   <td className="px-4 py-4 text-center">
-                    <span className="rounded-lg bg-amber-100 px-2 py-1 font-semibold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{f.aktifTalep}</span>
+                    <span className="rounded-lg bg-emerald-100 px-2 py-1 font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">{f.basariliTalep}</span>
                   </td>
                   <td className="px-4 py-4 text-center">
-                    <span className="rounded-lg bg-purple-100 px-2 py-1 font-semibold text-purple-800 dark:bg-purple-950/40 dark:text-purple-300">{f.mevcut}</span>
+                    <span className="rounded-lg bg-blue-100 px-2 py-1 font-semibold text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">{f.aktifTalep}</span>
+                  </td>
+                  <td className="px-4 py-4 text-center">
+                    <span className="rounded-lg bg-red-100 px-2 py-1 font-semibold text-red-800 dark:bg-red-950/40 dark:text-red-300">{f.iptalTalep}</span>
                   </td>
                   <td className="px-4 py-4">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-500 dark:text-zinc-400">{f.mevcut}/{f.hedef || "—"}</span>
+                        <span className="text-zinc-500 dark:text-zinc-400">{f.iseBaslayan}/{f.hedef || "—"}</span>
                         <span className={`font-semibold ${
                           f.doluluk >= 100 ? "text-emerald-600 dark:text-emerald-400" :
                           f.doluluk >= 50 ? "text-blue-600 dark:text-blue-400" :
@@ -400,7 +421,7 @@ export default async function DashboardPage() {
               ))}
               {firmaAnaliz.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
                     Henüz firma verisi yok.
                   </td>
                 </tr>
