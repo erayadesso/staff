@@ -24,15 +24,17 @@ export default function DomainYonetimi({
 }: DomainYonetimiProps) {
   const router = useRouter();
   const [arama, setArama] = useState("");
+  const [rootYeniAdi, setRootYeniAdi] = useState("");
 
-  // State'ler
+  // State'ler — her form kendi state'ine sahip
   const [yeniAltDomainFirmaId, setYeniAltDomainFirmaId] = useState<string | null>(null);
-  const [yeniDomainAdi, setYeniDomainAdi] = useState("");
-  const [yeniDomainParentId, setYeniDomainParentId] = useState<string | null>(null);
+  const [yeniAltDomainAdi, setYeniAltDomainAdi] = useState("");
 
   const [duzenlenenDomain, setDuzenlenenDomain] = useState<string | null>(null);
   const [duzenlemeAdi, setDuzenlemeAdi] = useState("");
   const [duzenlemeParentId, setDuzenlemeParentId] = useState<string | null>(null);
+
+  const [loading, setLoading] = useState<string | null>(null); // id → loading state
 
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -73,6 +75,7 @@ export default function DomainYonetimi({
 
   function renderDomainCard(domain: Domain, depth: number) {
     const isEditing = duzenlenenDomain === domain.id;
+    const isLoading = loading === domain.id;
 
     return (
       <div
@@ -82,7 +85,7 @@ export default function DomainYonetimi({
         }`}
       >
         {isEditing ? (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <input
               value={duzenlemeAdi}
               onChange={(e) => setDuzenlemeAdi(e.target.value)}
@@ -113,9 +116,10 @@ export default function DomainYonetimi({
             </select>
             <button
               onClick={() => handleUpdate(domain.id)}
-              className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+              className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              disabled={isLoading}
             >
-              Kaydet
+              {isLoading ? "Kaydediliyor..." : "Kaydet"}
             </button>
             <button
               onClick={() => setDuzenlenenDomain(null)}
@@ -129,7 +133,7 @@ export default function DomainYonetimi({
             <div className="flex min-w-0 items-center gap-2">
               {/* Depth indicator */}
               {depth > 0 && (
-                <span className="text-zinc-300 dark:text-zinc-600">└─</span>
+                <span className="shrink-0 text-zinc-300 dark:text-zinc-600">└─</span>
               )}
               {/* Parent badge */}
               {domain.parent && (
@@ -168,8 +172,7 @@ export default function DomainYonetimi({
                 <button
                   onClick={() => {
                     setYeniAltDomainFirmaId(yeniAltDomainFirmaId === domain.id ? null : domain.id);
-                    setYeniDomainParentId(domain.id);
-                    setYeniDomainAdi("");
+                    setYeniAltDomainAdi("");
                   }}
                   className="rounded px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 hover:text-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/30"
                   title="Alt alan ekle"
@@ -198,11 +201,11 @@ export default function DomainYonetimi({
         )}
 
         {/* Yeni alt domain formu */}
-        {yeniAltDomainFirmaId === domain.id && isAdmin && (
-          <div className="mt-2 flex items-center gap-2 pl-4">
+        {yeniAltDomainFirmaId === domain.id && isAdmin && !isEditing && (
+          <div className="mt-2 flex flex-col gap-2 pl-4 sm:flex-row">
             <input
-              value={yeniDomainAdi}
-              onChange={(e) => setYeniDomainAdi(e.target.value)}
+              value={yeniAltDomainAdi}
+              onChange={(e) => setYeniAltDomainAdi(e.target.value)}
               placeholder="Alt alan adı"
               className={inputClass}
               autoFocus
@@ -213,9 +216,10 @@ export default function DomainYonetimi({
             />
             <button
               onClick={() => handleAddChild(domain.id)}
-              className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+              className="shrink-0 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50"
+              disabled={isLoading || !yeniAltDomainAdi.trim()}
             >
-              Ekle
+              {isLoading ? "Ekleniyor..." : "Ekle"}
             </button>
             <button
               onClick={() => setYeniAltDomainFirmaId(null)}
@@ -230,13 +234,14 @@ export default function DomainYonetimi({
   }
 
   async function handleAddChild(parentId: string) {
-    if (!yeniDomainAdi.trim()) return;
+    if (!yeniAltDomainAdi.trim()) return;
+    setLoading(parentId);
     try {
       const res = await fetch("/api/domains", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: yeniDomainAdi.trim(),
+          name: yeniAltDomainAdi.trim(),
           parentId,
         }),
       });
@@ -245,23 +250,26 @@ export default function DomainYonetimi({
         showToast(data.error ?? "Eklenemedi.", "error");
         return;
       }
-      setYeniDomainAdi("");
+      setYeniAltDomainAdi("");
       setYeniAltDomainFirmaId(null);
       showToast("Alt alan eklendi.", "success");
       router.refresh();
     } catch {
       showToast("Bir hata oluştu.", "error");
+    } finally {
+      setLoading(null);
     }
   }
 
   async function handleAddRoot() {
-    if (!yeniDomainAdi.trim()) return;
+    if (!rootYeniAdi.trim()) return;
+    setLoading("root");
     try {
       const res = await fetch("/api/domains", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: yeniDomainAdi.trim(),
+          name: rootYeniAdi.trim(),
           parentId: null,
         }),
       });
@@ -270,16 +278,19 @@ export default function DomainYonetimi({
         showToast(data.error ?? "Eklenemedi.", "error");
         return;
       }
-      setYeniDomainAdi("");
+      setRootYeniAdi("");
       showToast("Alan adı eklendi.", "success");
       router.refresh();
     } catch {
       showToast("Bir hata oluştu.", "error");
+    } finally {
+      setLoading(null);
     }
   }
 
   async function handleUpdate(id: string) {
     if (!duzenlemeAdi.trim()) return;
+    setLoading(id);
     try {
       const res = await fetch(`/api/domains/${id}`, {
         method: "PATCH",
@@ -299,12 +310,15 @@ export default function DomainYonetimi({
       router.refresh();
     } catch {
       showToast("Bir hata oluştu.", "error");
+    } finally {
+      setLoading(null);
     }
   }
 
   async function handleDelete(id: string, name: string) {
     const onay = confirm(`"${name}" alan adı silinsin mi? (Alt alanlar parent'sız kalır.)`);
     if (!onay) return;
+    setLoading(id);
     try {
       const res = await fetch(`/api/domains/${id}`, {
         method: "DELETE",
@@ -318,6 +332,8 @@ export default function DomainYonetimi({
       router.refresh();
     } catch {
       showToast("Bir hata oluştu.", "error");
+    } finally {
+      setLoading(null);
     }
   }
 
@@ -359,8 +375,8 @@ export default function DomainYonetimi({
         {isAdmin && (
           <div className="flex items-center gap-2">
             <input
-              value={yeniDomainAdi}
-              onChange={(e) => setYeniDomainAdi(e.target.value)}
+              value={rootYeniAdi}
+              onChange={(e) => setRootYeniAdi(e.target.value)}
               placeholder="Yeni yetkinlik merkezi"
               className="w-52 rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
               onKeyDown={(e) => {
@@ -369,9 +385,10 @@ export default function DomainYonetimi({
             />
             <button
               onClick={handleAddRoot}
-              className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              className="shrink-0 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+              disabled={loading === "root" || !rootYeniAdi.trim()}
             >
-              + Ekle
+              {loading === "root" ? "Ekleniyor..." : "+ Ekle"}
             </button>
           </div>
         )}
