@@ -76,32 +76,40 @@ export async function DELETE(_request: NextRequest, ctx: Ctx) {
   try {
     const domain = await prisma.domain.findUnique({
       where: { id },
-      include: { children: true },
+      include: { children: true, _count: { select: { requests: true } } },
     });
     if (!domain) {
       return NextResponse.json({ error: "Alan adı bulunamadı." }, { status: 404 });
     }
 
-    // Çocukları varsa — parent'ı null yap (cascade değil, alt alanlar kalsın)
-    if (domain.children.length > 0) {
-      await prisma.domain.updateMany({
-        where: { parentId: id },
-        data: { parentId: null },
-      });
-    }
-
     // Bu alana bağlı talep var mı?
-    const talepSayisi = await prisma.request.count({
-      where: { domainId: id },
-    });
-    if (talepSayisi > 0) {
+    if (domain._count.requests > 0) {
       return NextResponse.json(
         { error: "Bu alan adına bağlı talep bulunmaktadır. Önce talepleri güncelleyin." },
         { status: 400 }
       );
     }
 
-    await prisma.domain.delete({ where: { id } });
+    // Cascade sil: önce çocukların çocuklarını bu alana bağla, sonra hepsini sil
+    // Recursive olmayan: 2 seviyeli destek — çocukların çocuklarını bu alanın çocukları yap
+    const grandchildren = await prisma.domain.findMany({
+      where: { parentId: { in: domain.children.map((c) => c.id) } },
+    });
+
+    await prisma.$transaction(async (tx) => {
+      // Grandchildren'ların parent'ını null yap (en dışa taşı)
+      for (const gc of grandchildren) {
+        await tx.domain.update({
+          where: { id: gc.id },
+          data: { parentId: null },
+        });
+      }
+      // Children'ları sil
+      await tx.domain.deleteMany({ where: { parentId: id } });
+      // Parent'ı sil
+      await tx.domain.delete({ where: { id } });
+    });
+
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "Silinemedi." }, { status: 500 });

@@ -190,7 +190,7 @@ export default function DomainYonetimi({
                   Düzenle
                 </button>
                 <button
-                  onClick={() => handleDelete(domain.id, domain.name)}
+                  onClick={() => handleDelete(domain.id, domain.name, domain._count.children)}
                   className="rounded px-2 py-1 text-xs text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
                 >
                   Sil
@@ -315,8 +315,12 @@ export default function DomainYonetimi({
     }
   }
 
-  async function handleDelete(id: string, name: string) {
-    const onay = confirm(`"${name}" alan adı silinsin mi? (Alt alanlar parent'sız kalır.)`);
+  async function handleDelete(id: string, name: string, childrenCount: number) {
+    let mesaj = `"${name}" alan adı silinsin mi?`;
+    if (childrenCount > 0) {
+      mesaj = `"${name}" alan adı silinsin mi? (${childrenCount} alt alan ile birlikte silinecek!)`;
+    }
+    const onay = confirm(mesaj);
     if (!onay) return;
     setLoading(id);
     try {
