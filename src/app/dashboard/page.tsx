@@ -345,10 +345,10 @@ export default async function DashboardPage() {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-              Firma Bazında Doluluk
+              Firma Bazında İşe Başlama
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Firmaların talep sayısı, aday sayısı ve hedefe ulaşma oranı
+              Firmaların talep sayısı, aday durumu ve işe başlama oranı
             </p>
           </div>
         </div>
@@ -361,7 +361,7 @@ export default async function DashboardPage() {
                 <th className="px-4 py-3 font-medium text-center">Başarılı</th>
                 <th className="px-4 py-3 font-medium text-center">Açık</th>
                 <th className="px-4 py-3 font-medium text-center">İptal</th>
-                <th className="px-4 py-3 font-medium">Hedef / İşe Başlama</th>
+                <th className="px-4 py-3 font-medium">İşe Başlama / Hedef</th>
                 <th className="px-4 py-3 font-medium text-center">Geçen Deadline</th>
               </tr>
             </thead>
