@@ -14,6 +14,13 @@ export default async function YeniTalepPage() {
     orderBy: [{ company: { name: "asc" } }, { name: "asc" }],
   });
 
+  const domains = await prisma.domain.findMany({
+    include: {
+      parent: { select: { id: true, name: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+
   const yeniDurum =
     (await prisma.requestStatus.findFirst({
       where: { ton: "yeni" },
@@ -46,6 +53,11 @@ export default async function YeniTalepPage() {
           companyName: d.company.name,
         }))}
         yeniDurum={yeniDurum}
+        domains={domains.map((d) => ({
+          id: d.id,
+          name: d.name,
+          parentName: d.parent?.name,
+        }))}
       />
     </div>
   );

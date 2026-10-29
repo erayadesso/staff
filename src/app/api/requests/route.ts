@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
     deadline?: string | null;
     adessoDuration?: string | null;
     departmentId?: string;
+    domainId?: string | null;
   };
   try {
     body = await request.json();
@@ -91,6 +92,7 @@ export async function POST(request: NextRequest) {
         adessoDuration,
         departmentId: department.id,
         createdById: user.id,
+        domainId: body.domainId || null,
       },
     });
 

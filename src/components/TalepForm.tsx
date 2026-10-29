@@ -10,12 +10,20 @@ interface Department {
   companyName: string;
 }
 
+interface Domain {
+  id: string;
+  name: string;
+  parentName?: string | null;
+}
+
 export default function TalepForm({
   departments,
   yeniDurum,
+  domains,
 }: {
   departments: Department[];
   yeniDurum: StatuNesne | null;
+  domains: Domain[];
 }) {
   const router = useRouter();
   const firmalar = Array.from(new Set(departments.map((d) => d.companyName)));
@@ -29,6 +37,7 @@ export default function TalepForm({
   const [currentNote, setCurrentNote] = useState("");
   const [deadline, setDeadline] = useState("");
   const [adessoDuration, setAdessoDuration] = useState("");
+  const [domainId, setDomainId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -60,6 +69,7 @@ export default function TalepForm({
           deadline: deadline || null,
           adessoDuration: adessoDuration || null,
           departmentId,
+          domainId: domainId || null,
         }),
       });
       const data = await res.json();
@@ -117,6 +127,25 @@ export default function TalepForm({
             ))}
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className={labelClass}>Yetkinlik Merkezi (opsiyonel)</label>
+        <select
+          value={domainId}
+          onChange={(e) => setDomainId(e.target.value)}
+          className={inputClass}
+        >
+          <option value="">Seçiniz</option>
+          {domains.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.parentName ? `${d.parentName} → ` : ""}{d.name}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-[10px] text-zinc-400">
+          Talebin hangi yetkinlik merkezine ait olduğunu belirtin.
+        </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
