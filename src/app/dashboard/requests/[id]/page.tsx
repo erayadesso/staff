@@ -8,6 +8,7 @@ import TalepStatuBadge from "@/components/TalepStatuBadge";
 import {
   deadlineGecti,
   isBasariKapatildi,
+  isKapaliDurum,
   kalanGun,
   pozisyonYasi,
 } from "@/lib/domain";
@@ -81,6 +82,8 @@ export default async function TalepDetayPage({
     (a) => a.processStatus?.ton && a.processStatus.ton !== "kapandi" && a.processStatus.ton !== "bekliyor"
   ).length;
 
+  const basariylaKapatildi = isBasariKapatildi(request.candidates, request.quantity);
+
   function fmtDate(d: Date | null) {
     if (!d) return "—";
     return new Date(d).toLocaleDateString("tr-TR", {
@@ -123,7 +126,7 @@ export default async function TalepDetayPage({
           </div>
       </div>
 
-      {deadlineGecti(request.status, request.deadline) && (
+      {!basariylaKapatildi && deadlineGecti(request.status, request.deadline) && (
         <div className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
           ⚠️ Müşteri talep son geçerlilik tarihi (DEADLINE) geçti.
           {kalanGun(request.deadline) != null &&
@@ -153,7 +156,10 @@ export default async function TalepDetayPage({
                 <dd className="font-medium text-zinc-800 dark:text-zinc-200">
                   {fmtDate(request.createdAt)}
                   <span className="ml-1 text-xs font-normal text-zinc-500">
-                    ({pozisyonYasi(request.createdAt)} gündür açık)
+                    ({basariylaKapatildi || isKapaliDurum(request.status)
+                      ? pozisyonYasi(request.createdAt) + ' gündür kapalı'
+                      : pozisyonYasi(request.createdAt) + ' gündür açık'
+                    })
                   </span>
                 </dd>
               </div>
@@ -161,13 +167,13 @@ export default async function TalepDetayPage({
                 <dt className="text-xs text-zinc-500">Müşteri Son Geçerlilik</dt>
                 <dd
                   className={
-                    deadlineGecti(request.status, request.deadline)
+                    (!basariylaKapatildi && deadlineGecti(request.status, request.deadline))
                       ? "font-medium text-red-600 dark:text-red-400"
                       : "font-medium text-zinc-800 dark:text-zinc-200"
                   }
                 >
                   {fmtDate(request.deadline)}
-                  {deadlineGecti(request.status, request.deadline) && (
+                  {(!basariylaKapatildi && deadlineGecti(request.status, request.deadline)) && (
                     <span className="ml-1 inline-flex items-center rounded bg-red-100 px-1.5 py-0.5 text-[11px] font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
                       geçti
                     </span>

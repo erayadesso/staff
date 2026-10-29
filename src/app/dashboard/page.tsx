@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
 import ExcelIndirButton from "@/components/ExcelIndirButton";
-import { isKapaliDurum, deadlineGecti, statununTonu } from "@/lib/domain";
+import { isKapaliDurum, isBasariKapatildi, deadlineGecti, statununTonu } from "@/lib/domain";
 import DashboardCharts from "@/components/DashboardCharts";
 import LoadingMessage from "@/components/LoadingMessage";
 
@@ -61,10 +61,11 @@ export default async function DashboardPage() {
   const iseBasanAday = requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.ton === "karsilandi").length, 0);
   const bekleyenAday = requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.ton !== "karsilandi").length, 0);
 
-  // Uyarılar
-  const gecikmis = requests.filter((r) => deadlineGecti(r.status, r.deadline));
+  // Uyarılar — başarıyla kapanan talepler uyarıda gösterilmez
+  const gecikmis = requests.filter((r) => !isBasariKapatildi(r.candidates, r.quantity) && deadlineGecti(r.status, r.deadline));
   const yaklasan = requests.filter((r) => {
     if (!r.deadline) return false;
+    if (isBasariKapatildi(r.candidates, r.quantity)) return false;
     const kalan = Math.ceil((r.deadline.getTime() - bugun.getTime()) / 86400000);
     return kalan >= 0 && kalan <= 7;
   });
@@ -76,7 +77,7 @@ export default async function DashboardPage() {
     const toplamHedef = ft.reduce((a, r) => a + (parseInt(r.quantity || "0") || 0), 0);
     const mevcutAday = ft.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.ton !== "karsilandi").length, 0);
     const doluluk = toplamHedef > 0 ? Math.round((mevcutAday / toplamHedef) * 100) : 0;
-    const gecikmisCount = ft.filter((r) => deadlineGecti(r.status, r.deadline)).length;
+    const gecikmisCount = ft.filter((r) => !isBasariKapatildi(r.candidates, r.quantity) && deadlineGecti(r.status, r.deadline)).length;
     return {
       firma: c.name,
       toplamTalep: ft.length,

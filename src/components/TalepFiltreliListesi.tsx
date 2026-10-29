@@ -389,7 +389,7 @@ export default function TalepFiltreliListesi({
                         #{t.requestNo}
                       </span>
                       <TalepStatuBadge durum={t.status} />
-                      {t.deadlineGectiMi && (
+                      {!t.basariylaKapandi && t.deadlineGectiMi && (
                         <span
                           className="inline-flex items-center gap-0.5 rounded-md bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 ring-1 ring-inset ring-red-200 dark:bg-red-950/50 dark:text-red-300 dark:ring-red-800"
                           title="Müşteri son geçerlilik tarihi geçti"
@@ -435,9 +435,9 @@ export default function TalepFiltreliListesi({
                   <span>{t.requestOwner}</span>
                   {t.quantity && <span>Hedef: {t.quantity}</span>}
                   {t.deadline && (
-                    <span className={t.deadlineGectiMi ? "text-red-600 dark:text-red-400" : ""}>
+                    <span className={(!t.basariylaKapandi && t.deadlineGectiMi) ? "text-red-600 dark:text-red-400" : ""}>
                       Son: {fmtDateShort(t.deadline)}
-                      {t.deadlineGectiMi && " ⚠"}
+                      {!t.basariylaKapandi && t.deadlineGectiMi && " ⚠"}
                     </span>
                   )}
                 </div>
@@ -609,13 +609,13 @@ export default function TalepFiltreliListesi({
                       )}
                     </td>
                     <td className={`px-4 py-3 whitespace-nowrap text-sm ${
-                      t.deadlineGectiMi ? "text-red-600 dark:text-red-400" : "text-zinc-700 dark:text-zinc-300"
+                      (!t.basariylaKapandi && t.deadlineGectiMi) ? "text-red-600 dark:text-red-400" : "text-zinc-700 dark:text-zinc-300"
                     }`}>
                       {t.yasi} gün
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-zinc-700 dark:text-zinc-300">
                       {fmtDate(t.deadline)}
-                      {t.deadlineGectiMi && (
+                      {(!t.basariylaKapandi && t.deadlineGectiMi) && (
                         <span className="ml-1 inline-flex items-center rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">
                           geçti
                         </span>
