@@ -104,3 +104,13 @@ model Domain {
 
   @@index([parentId])
 }
+
+model ReleaseNote {
+  id        String   @id @default(cuid())
+  version   String   @unique
+  title     String
+  body      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
