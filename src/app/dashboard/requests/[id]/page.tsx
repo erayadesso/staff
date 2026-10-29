@@ -155,12 +155,6 @@ export default async function TalepDetayPage({
                 <dt className="text-xs text-zinc-500">Oluşturulma</dt>
                 <dd className="font-medium text-zinc-800 dark:text-zinc-200">
                   {fmtDate(request.createdAt)}
-                  <span className="ml-1 text-xs font-normal text-zinc-500">
-                    ({basariylaKapatildi || isKapaliDurum(request.status)
-                      ? pozisyonYasi(request.createdAt) + ' gündür kapalı'
-                      : pozisyonYasi(request.createdAt) + ' gündür açık'
-                    })
-                  </span>
                 </dd>
               </div>
               <div>
