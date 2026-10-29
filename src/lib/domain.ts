@@ -304,7 +304,7 @@ export function parseAdet(adet: string | null | undefined): number {
 
 /**
  * "İşe Başladı" (karsilandi tonu) statüsündeki adaylar hedef adede ulaştıysa
- * talebin karşılandığını döndürür.
+ * talebin karşılandığını döndürür. (Hedefin üzerinde bile olsa başarılıdır.)
  */
 export function isBasariKapatildi(
   adaylar: { processStatus: string | StatuNesne | null | undefined }[],
@@ -314,5 +314,5 @@ export function isBasariKapatildi(
     (a) => statununTonu(a.processStatus) === "karsilandi"
   ).length;
   const hedef = parseAdet(adet);
-  return hedef > 0 && iseBaslayan === hedef;
+  return hedef > 0 && iseBaslayan >= hedef;
 }
