@@ -37,10 +37,14 @@ export default async function DashboardPage() {
   if (!user) return null;
 
   const bugun = new Date();
-  const [requests, companies, processStatuses] = await Promise.all([
+  const [requests, companies, processStatuses, domains] = await Promise.all([
     getAllRequests(),
     prisma.company.findMany({ orderBy: { name: "asc" } }),
     prisma.processStatus.findMany({ orderBy: { order: "asc" } }),
+    prisma.domain.findMany({
+      include: { parent: { select: { id: true, name: true } } },
+      orderBy: { name: "asc" },
+    }),
   ]);
 
   // KPI
@@ -156,6 +160,81 @@ export default async function DashboardPage() {
 
   const trendDataTumu = hesaplaTrendTumu();
 
+  // Domain bazlı trend verileri
+  function hesaplaTrendDomain(gunSayisi: number, domainId: string | null) {
+    const filtered = domainId ? requests.filter((r) => r.domainId === domainId) : requests;
+    const haftaAdet = Math.ceil(gunSayisi / 7);
+    const result: { hafta: string; olusturan: number; kapatilan: number }[] = [];
+    for (let i = 0; i < haftaAdet; i++) {
+      const baslangic = new Date(bugun.getTime() - (gunSayisi - i * 7) * 86400000);
+      const bitisMs = bugun.getTime() - (gunSayisi - (i + 1) * 7) * 86400000;
+      const bitis = new Date(Math.min(bitisMs, bugun.getTime()));
+      const olusturan = filtered.filter((r) => {
+        const d = new Date(r.createdAt);
+        return d >= baslangic && d < bitis;
+      }).length;
+      const kapatilan = filtered.filter((r) => {
+        if (!isKapaliDurum(r.status)) return false;
+        const d = new Date(r.createdAt);
+        return d >= baslangic && d < bitis;
+      }).length;
+      const gun = baslangic.getDate();
+      const ay = baslangic.toLocaleString("tr-TR", { month: "short" });
+      result.push({ hafta: `${gun} ${ay}`, olusturan, kapatilan });
+    }
+    return result;
+  }
+
+  // Her domain için trend verileri hazırla
+  const domainTrendKeys = domains.map((d) => ({
+    id: d.id,
+    label: d.parent ? `${d.parent.name} → ${d.name}` : d.name,
+  }));
+
+  const domainTrend30 = domainTrendKeys.map((dk) => ({
+    ...dk,
+    data: hesaplaTrendDomain(30, dk.id),
+  }));
+  const domainTrend90 = domainTrendKeys.map((dk) => ({
+    ...dk,
+    data: hesaplaTrendDomain(90, dk.id),
+  }));
+  const domainTrend180 = domainTrendKeys.map((dk) => ({
+    ...dk,
+    data: hesaplaTrendDomain(180, dk.id),
+  }));
+  const domainTrendTumu = domainTrendKeys.map((dk) => ({
+    ...dk,
+    data: hesaplaTrendTumuFiltered(dk.id),
+  }));
+
+  function hesaplaTrendTumuFiltered(domainId: string | null) {
+    const filtered = domainId ? requests.filter((r) => r.domainId === domainId) : requests;
+    if (filtered.length === 0) return [];
+    const ilkTarih = new Date(Math.min(...filtered.map((r) => new Date(r.createdAt).getTime())));
+    const gunFark = Math.ceil((bugun.getTime() - ilkTarih.getTime()) / 86400000);
+    const haftaSayisi = Math.min(Math.ceil(gunFark / 7), 104);
+    const result: { hafta: string; olusturan: number; kapatilan: number }[] = [];
+    for (let i = 0; i < haftaSayisi; i++) {
+      const baslangic = new Date(bugun.getTime() - (gunFark - i * 7) * 86400000);
+      const bitisMs = bugun.getTime() - (gunFark - (i + 1) * 7) * 86400000;
+      const bitis = new Date(Math.min(bitisMs, bugun.getTime()));
+      const olusturan = filtered.filter((r) => {
+        const d = new Date(r.createdAt);
+        return d >= baslangic && d < bitis;
+      }).length;
+      const kapatilan = filtered.filter((r) => {
+        if (!isKapaliDurum(r.status)) return false;
+        const d = new Date(r.createdAt);
+        return d >= baslangic && d < bitis;
+      }).length;
+      const gun = baslangic.getDate();
+      const ay = baslangic.toLocaleString("tr-TR", { month: "short" });
+      result.push({ hafta: `${gun} ${ay}`, olusturan, kapatilan });
+    }
+    return result;
+  }
+
   const pipelineData = processStatuses.map((s) => ({
     name: s.name.length > 20 ? s.name.slice(0, 18) + "…" : s.name,
     value: requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.name === s.name).length, 0),
@@ -245,6 +324,11 @@ export default async function DashboardPage() {
         trendData180={trendData180}
         trendDataTumu={trendDataTumu}
         pipelineData={pipelineData}
+        domainTrendKeys={domainTrendKeys}
+        domainTrend30={domainTrend30}
+        domainTrend90={domainTrend90}
+        domainTrend180={domainTrend180}
+        domainTrendTumu={domainTrendTumu}
       />
 
       {/* 3. Firma Bazında Tablo */}

@@ -23,6 +23,11 @@ export default function DashboardCharts({
   trendData180,
   trendDataTumu,
   pipelineData,
+  domainTrendKeys,
+  domainTrend30,
+  domainTrend90,
+  domainTrend180,
+  domainTrendTumu,
 }: {
   durumDagilimi: { name: string; value: number }[];
   firmaTalepBar: { name: string; value: number }[];
@@ -32,13 +37,23 @@ export default function DashboardCharts({
   trendData180: { hafta: string; olusturan: number; kapatilan: number }[];
   trendDataTumu: { hafta: string; olusturan: number; kapatilan: number }[];
   pipelineData: { name: string; value: number }[];
+  domainTrendKeys: { id: string; label: string }[];
+  domainTrend30: { id: string; label: string; data: { hafta: string; olusturan: number; kapatilan: number }[] }[];
+  domainTrend90: { id: string; label: string; data: { hafta: string; olusturan: number; kapatilan: number }[] }[];
+  domainTrend180: { id: string; label: string; data: { hafta: string; olusturan: number; kapatilan: number }[] }[];
+  domainTrendTumu: { id: string; label: string; data: { hafta: string; olusturan: number; kapatilan: number }[] }[];
 }) {
   const [period, setPeriod] = useState<Period>("90");
+  const [domainFilter, setDomainFilter] = useState<string>("all"); // "all" veya domain id
 
   const trendData = period === "30" ? trendData30 : period === "90" ? trendData90 : period === "180" ? trendData180 : trendDataTumu;
   const periodLabel = PERIOD_LABELS[period];
 
-  console.log("[Charts]", { period, trendDataLen: trendData.length, firstItem: trendData[0], all30: trendData30.length, all90: trendData90.length, all180: trendData180.length, allTumu: trendDataTumu.length });
+  // Domain bazlı trend verisi
+  const activeDomainTrends = period === "30" ? domainTrend30 : period === "90" ? domainTrend90 : period === "180" ? domainTrend180 : domainTrendTumu;
+  const selectedDomainData = domainFilter === "all"
+    ? { id: "all", label: "Tümü", data: trendData }
+    : activeDomainTrends.find((d) => d.id === domainFilter) || { id: "all", label: "Tümü", data: [] };
 
   return (
     <div className="space-y-6">
@@ -112,27 +127,41 @@ export default function DashboardCharts({
       </div>
 
       <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">Talep Eğilimi — {periodLabel}</h3>
-          <div className="flex gap-1 rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-700">
-            {(["30", "90", "180", "all"] as Period[]).map((p) => (
-              <button
-                key={p}
-                onClick={() => setPeriod(p)}
-                className={`rounded-md px-3 py-1 text-xs font-medium transition ${
-                  period === p
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                    : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                }`}
+          <div className="flex flex-wrap items-center gap-3">
+            {domainTrendKeys.length > 0 && (
+              <select
+                value={domainFilter}
+                onChange={(e) => setDomainFilter(e.target.value)}
+                className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
               >
-                {PERIOD_LABELS[p]}
-              </button>
-            ))}
+                <option value="all">Tüm Yetkinlik Merkezleri</option>
+                {domainTrendKeys.map((d) => (
+                  <option key={d.id} value={d.id}>{d.label}</option>
+                ))}
+              </select>
+            )}
+            <div className="flex gap-1 rounded-lg border border-zinc-200 p-0.5 dark:border-zinc-700">
+              {(["30", "90", "180", "all"] as Period[]).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPeriod(p)}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                    period === p
+                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                  }`}
+                >
+                  {PERIOD_LABELS[p]}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={trendData} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
+            <AreaChart data={selectedDomainData.data} margin={{ top: 10, right: 10, left: 10, bottom: 10 }}>
               <defs>
                 <linearGradient id="colorOlusturan" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
