@@ -11,13 +11,19 @@ export async function POST(req: NextRequest) {
 
   let body: {
     requestId?: string;
+    request_id?: string;
     candidateName?: string;
+    adayAdi?: string;
     domain?: string;
     requestDetails?: string;
+    talepDetaylari?: string;
     source?: string;
     processStatusId?: string;
+    surecDurumId?: string;
     cost?: string;
+    adayCost?: string;
     startDate?: string | null;
+    iseBaslamaTarihi?: string | null;
   };
   try {
     body = await req.json();
@@ -25,8 +31,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Geçersiz istek." }, { status: 400 });
   }
 
-  const candidateName = body.candidateName?.trim();
-  if (!candidateName || !body.requestId) {
+  // Hem camelCase hem snake_case kabul et (kaynaşma dönemi)
+  const requestId = body.requestId ?? body.request_id;
+  const candidateName = (body.candidateName ?? body.adayAdi)?.trim();
+  if (!candidateName || !requestId) {
     return NextResponse.json(
       { error: "Aday adı ve talep zorunludur." },
       { status: 400 }
@@ -34,15 +42,16 @@ export async function POST(req: NextRequest) {
   }
 
   const reqObj = await prisma.request.findUnique({
-    where: { id: body.requestId },
+    where: { id: requestId },
   });
   if (!reqObj) {
     return NextResponse.json({ error: "Talep bulunamadı." }, { status: 404 });
   }
 
   let startDate: Date | null = null;
-  if (body.startDate) {
-    const d = new Date(body.startDate);
+  const startDateRaw = body.startDate ?? body.iseBaslamaTarihi;
+  if (startDateRaw) {
+    const d = new Date(startDateRaw);
     if (!Number.isNaN(d.getTime())) startDate = d;
   }
 
@@ -51,10 +60,10 @@ export async function POST(req: NextRequest) {
       requestId: reqObj.id,
       candidateName,
       domain: body.domain?.trim() || null,
-      requestDetails: body.requestDetails?.trim() || null,
+      requestDetails: (body.requestDetails ?? body.talepDetaylari) || null,
       source: body.source?.trim() || null,
-      processStatusId: body.processStatusId || null,
-      cost: body.cost?.trim() || null,
+      processStatusId: (body.processStatusId ?? body.surecDurumId) || null,
+      cost: (body.cost ?? body.adayCost)?.trim() || null,
       startDate,
     },
   });
