@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 
 const LOCAL_STORAGE_KEY = "release_notes_seen";
+const FORCE_OPEN_KEY = "release_notes_force_open";
 
 interface ReleaseNote {
   id: string;
@@ -12,7 +13,7 @@ interface ReleaseNote {
   createdAt: string;
 }
 
-export default function ReleaseNotesModal() {
+export default function ReleaseNotesModal({ onOpen }: { onOpen?: () => void }) {
   const [releaseNote, setReleaseNote] = useState<ReleaseNote | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -38,6 +39,15 @@ export default function ReleaseNotesModal() {
   useEffect(() => {
     if (!releaseNote || loading) return;
 
+    // 1) Manuel "Force Open" kontrolü
+    const forceOpen = localStorage.getItem(FORCE_OPEN_KEY);
+    if (forceOpen) {
+      setIsOpen(true);
+      localStorage.removeItem(FORCE_OPEN_KEY);
+      return;
+    }
+
+    // 2) Normal seen kontrolü
     const seenVersion = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (seenVersion !== releaseNote.version) {
       setIsOpen(true);
@@ -51,15 +61,24 @@ export default function ReleaseNotesModal() {
     }
   }
 
+  function handleVersionClick() {
+    // Sadece release note varsa ve modal zaten açıksa
+    if (releaseNote) {
+      setIsOpen(true);
+      onOpen?.();
+    }
+  }
+
   if (!releaseNote || !isOpen || loading) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={handleClose}>
       <div
         className="w-full max-w-lg animate-in fade-in zoom-in duration-200"
         role="dialog"
         aria-modal
         aria-label="Release Notes"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="rounded-2xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-950">
           {/* Header */}
