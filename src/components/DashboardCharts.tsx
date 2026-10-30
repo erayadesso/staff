@@ -80,7 +80,7 @@ export default function DashboardCharts({
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={firmaTalepBar} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />
-                <XAxis dataKey="name" className="text-xs" tick={{ fontSize: 10 }} />
+                <XAxis dataKey="name" className="text-xs" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" interval={0} height={80} />
                 <YAxis className="text-xs" tick={{ fontSize: 10 }} />
                 <Tooltip />
                 <Bar dataKey="value" fill="#6366f1" radius={[4, 4, 0, 0]} />
