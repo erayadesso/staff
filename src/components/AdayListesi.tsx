@@ -146,7 +146,7 @@ export default function AdayListesi({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          request_id,
+          requestId: request_id,
           candidateName: newForm.name,
           domain: newForm.domain || null,
           requestDetails: newForm.requestDetails || null,

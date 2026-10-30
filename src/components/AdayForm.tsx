@@ -34,14 +34,14 @@ export default function AdayForm({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          talepId,
-          adayAdi,
+          requestId: talepId,
+          candidateName: adayAdi,
           domain,
           source,
-          surecDurumId,
-          adayCost: fullCost,
-          talepDetaylari,
-          iseBaslamaTarihi: iseBaslamaTarihi || null,
+          processStatusId: surecDurumId,
+          cost: fullCost,
+          requestDetails: talepDetaylari,
+          startDate: iseBaslamaTarihi || null,
         }),
       });
       const data = await res.json();
