@@ -3,7 +3,7 @@
 import ReleaseNotesModal from "./ReleaseNotesModal";
 import { useCallback, useRef } from "react";
 
-const APP_VERSION = process.env.NEXT_PUBLIC_VERSION || "1.6.0";
+const APP_VERSION = process.env.NEXT_PUBLIC_VERSION || "1.7.0";
 const FORCE_OPEN_KEY = "release_notes_force_open";
 
 export default function DashboardVersion() {
