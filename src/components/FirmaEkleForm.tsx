@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export default function FirmaEkleForm() {
   const router = useRouter();
@@ -24,8 +25,10 @@ export default function FirmaEkleForm() {
       const d = await res.json();
       if (!res.ok) {
         setError(d.error ?? "Eklenemedi.");
+        toast.error(d.error ?? "Eklenemedi.");
         return;
       }
+      toast.success("Firma eklendi.");
       setFirmaAd("");
       setBirimAd("");
       router.refresh();

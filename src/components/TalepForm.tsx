@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import type { StatuNesne } from "@/lib/domain";
 
 interface Department {
@@ -75,12 +76,15 @@ export default function TalepForm({
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Talep oluşturulamadı.");
+        toast.error(data.error ?? "Talep oluşturulamadı.");
         return;
       }
+      toast.success("Talep oluşturuldu.");
       router.push(`/dashboard/requests/${data.request.id}`);
       router.refresh();
     } catch {
       setError("Bir hata oluştu.");
+      toast.error("Bir hata oluştu, lütfen tekrar deneyin.");
     } finally {
       setLoading(false);
     }

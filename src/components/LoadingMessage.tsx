@@ -2,8 +2,13 @@
 
 export default function LoadingMessage() {
   return (
-    <p className="text-center text-sm text-zinc-400 dark:text-zinc-500 animate-pulse">
-      Veriler yükleniyor...
-    </p>
+    <div className="flex flex-col items-center justify-center gap-3 py-12">
+      <div
+        className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-zinc-600 dark:border-t-zinc-100"
+      />
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">
+        Veriler yükleniyor...
+      </p>
+    </div>
   );
 }

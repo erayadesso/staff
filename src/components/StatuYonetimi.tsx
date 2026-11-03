@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface Statu {
   id: string;
@@ -53,13 +54,16 @@ export default function StatuYonetimi({
       const d = await res.json();
       if (!res.ok) {
         setError(d.error ?? "Eklenemedi.");
+        toast.error(d.error ?? "Eklenemedi.");
         return;
       }
+      toast.success("Statü eklendi.");
       setYeniAd("");
       setYeniTon("varsayilan");
       router.refresh();
     } catch {
       setError("Bir hata oluştu.");
+      toast.error("Bir hata oluştu, lütfen tekrar deneyin.");
     } finally {
       setLoading(false);
     }
@@ -75,8 +79,10 @@ export default function StatuYonetimi({
     if (!res.ok) {
       const d = await res.json();
       setError(d.error ?? "Güncellenemedi.");
+      toast.error(d.error ?? "Güncellenemedi.");
       return;
     }
+    toast.success("Statü güncellendi.");
     setDuzenlenen(null);
     router.refresh();
   }
@@ -92,8 +98,10 @@ export default function StatuYonetimi({
     if (!res.ok) {
       const d = await res.json();
       setError(d.error ?? "Silinemedi.");
+      toast.error(d.error ?? "Silinemedi.");
       return;
     }
+    toast.success("Statü silindi.");
     router.refresh();
   }
 
