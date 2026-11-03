@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 
 const LOCAL_STORAGE_KEY = "release_notes_seen";
-const FORCE_OPEN_KEY = "release_notes_force_open";
 
 interface ReleaseNote {
   id: string;
@@ -13,9 +12,13 @@ interface ReleaseNote {
   createdAt: string;
 }
 
-export default function ReleaseNotesModal({ onOpen }: { onOpen?: () => void }) {
+interface ReleaseNotesModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function ReleaseNotesModal({ isOpen, onClose }: ReleaseNotesModalProps) {
   const [releaseNote, setReleaseNote] = useState<ReleaseNote | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,40 +39,24 @@ export default function ReleaseNotesModal({ onOpen }: { onOpen?: () => void }) {
     fetchReleaseNote();
   }, []);
 
+  // ESC tuşu ile kapat
   useEffect(() => {
-    if (!releaseNote || loading) return;
-
-    // 1) Manuel "Force Open" kontrolü
-    const forceOpen = localStorage.getItem(FORCE_OPEN_KEY);
-    if (forceOpen) {
-      setIsOpen(true);
-      localStorage.removeItem(FORCE_OPEN_KEY);
-      return;
-    }
-
-    // 2) Normal seen kontrolü
-    const seenVersion = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (seenVersion !== releaseNote.version) {
-      setIsOpen(true);
-    }
-  }, [releaseNote, loading]);
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isOpen]);
 
   function handleClose() {
-    setIsOpen(false);
+    onClose();
     if (releaseNote) {
       localStorage.setItem(LOCAL_STORAGE_KEY, releaseNote.version);
     }
   }
 
-  function handleVersionClick() {
-    // Sadece release note varsa ve modal zaten açıksa
-    if (releaseNote) {
-      setIsOpen(true);
-      onOpen?.();
-    }
-  }
-
-  if (!releaseNote || !isOpen || loading) return null;
+  if (!isOpen || !releaseNote || loading) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={handleClose}>

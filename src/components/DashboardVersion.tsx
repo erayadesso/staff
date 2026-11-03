@@ -1,23 +1,46 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import ReleaseNotesModal from "./ReleaseNotesModal";
-import { useCallback, useRef } from "react";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_VERSION || "1.7.0";
-const FORCE_OPEN_KEY = "release_notes_force_open";
+const LOCAL_STORAGE_KEY = "release_notes_seen";
 
 export default function DashboardVersion() {
-  const modalRef = useRef<{ open(): void } | null>(null);
+  const [openModal, setOpenModal] = useState(false);
+  const [releaseNoteVersion, setReleaseNoteVersion] = useState<string | null>(null);
 
-  const handleVersionClick = useCallback(() => {
-    // Modal zaten açıksa tekrar aç — release notes'u yeniden göster
-    localStorage.setItem(FORCE_OPEN_KEY, "true");
-    window.location.reload();
+  // Release note versiyonunu çek (seen kontrolü için)
+  useEffect(() => {
+    fetch("/api/release-notes")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.ok && d.releaseNote) {
+          setReleaseNoteVersion(d.releaseNote.version);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleVersionClick = () => {
+    // Zaten görülmüşse modal'ı açma
+    if (releaseNoteVersion && localStorage.getItem(LOCAL_STORAGE_KEY) === releaseNoteVersion) {
+      return;
+    }
+    setOpenModal(true);
+  };
+
+  const handleClose = () => {
+    setOpenModal(false);
+    // Modal kapandığında seen olarak işaretle
+    if (releaseNoteVersion) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, releaseNoteVersion);
+    }
+  };
 
   return (
     <>
-      <ReleaseNotesModal />
+      <ReleaseNotesModal isOpen={openModal} onClose={handleClose} />
       <div className="border-t border-zinc-100 py-3 text-center dark:border-zinc-800/50">
         <button
           onClick={handleVersionClick}
