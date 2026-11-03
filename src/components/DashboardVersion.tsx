@@ -11,12 +11,8 @@ export default function DashboardVersion() {
   const { releaseNote, loading } = useReleaseNote();
 
   const handleVersionClick = useCallback(() => {
-    // Zaten görülmüşse modal'ı açma
-    if (releaseNote && isSeen(releaseNote.version)) {
-      return;
-    }
     setModalOpen(true);
-  }, [releaseNote]);
+  }, []);
 
   const handleClose = useCallback(() => {
     setModalOpen(false);
