@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 
 const LOCAL_STORAGE_KEY = "release_notes_seen";
 
 interface ReleaseNote {
-  id: string;
   version: string;
   title: string;
   body: string;
@@ -15,29 +14,26 @@ interface ReleaseNote {
 interface ReleaseNotesModalProps {
   isOpen: boolean;
   onClose: () => void;
+  releaseNote: ReleaseNote | null;
+  loading: boolean;
 }
 
-export default function ReleaseNotesModal({ isOpen, onClose }: ReleaseNotesModalProps) {
-  const [releaseNote, setReleaseNote] = useState<ReleaseNote | null>(null);
-  const [loading, setLoading] = useState(true);
-
+export default function ReleaseNotesModal({
+  isOpen,
+  onClose,
+  releaseNote,
+  loading,
+}: ReleaseNotesModalProps) {
+  // Modal açıldığında seen kontrolü yap
   useEffect(() => {
-    async function fetchReleaseNote() {
-      try {
-        const res = await fetch("/api/release-notes");
-        const data = await res.json();
-        if (data.ok && data.releaseNote) {
-          setReleaseNote(data.releaseNote);
-        }
-      } catch {
-        // Release note fetch hatası — sessizce pas geç
-      } finally {
-        setLoading(false);
-      }
-    }
+    if (!isOpen || !releaseNote || loading) return;
 
-    fetchReleaseNote();
-  }, []);
+    const seenVersion = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (seenVersion === releaseNote.version) {
+      // Zaten görülmüş — modal'ı açma
+      onClose();
+    }
+  }, [isOpen, releaseNote, loading, onClose]);
 
   // ESC tuşu ile kapat
   useEffect(() => {

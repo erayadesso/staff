@@ -1,50 +1,64 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import ReleaseNotesModal from "./ReleaseNotesModal";
 
 const APP_VERSION = process.env.NEXT_PUBLIC_VERSION || "1.7.0";
-const LOCAL_STORAGE_KEY = "release_notes_seen";
+
+interface ReleaseNote {
+  version: string;
+  title: string;
+  body: string;
+  createdAt: string;
+}
 
 export default function DashboardVersion() {
   const [openModal, setOpenModal] = useState(false);
-  const [releaseNoteVersion, setReleaseNoteVersion] = useState<string | null>(null);
+  const [releaseNote, setReleaseNote] = useState<ReleaseNote | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Release note versiyonunu çek (seen kontrolü için)
+  // Sayfa yüklendiğinde release note'u çek
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/release-notes")
       .then((r) => r.json())
       .then((d) => {
-        if (d.ok && d.releaseNote) {
-          setReleaseNoteVersion(d.releaseNote.version);
+        if (!cancelled && d.ok && d.releaseNote) {
+          setReleaseNote(d.releaseNote);
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, []);
 
-  const handleVersionClick = () => {
-    // Zaten görülmüşse modal'ı açma
-    if (releaseNoteVersion && localStorage.getItem(LOCAL_STORAGE_KEY) === releaseNoteVersion) {
-      return;
-    }
+  const handleVersionClick = useCallback(() => {
+    // Modal zaten açıksa hiçbir şey yapma
+    if (openModal) return;
+    // Release note henüz yüklenmediyse, modal açma
+    if (!releaseNote || loading) return;
     setOpenModal(true);
-  };
+  }, [openModal, releaseNote, loading]);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setOpenModal(false);
-    // Modal kapandığında seen olarak işaretle
-    if (releaseNoteVersion) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, releaseNoteVersion);
-    }
-  };
+  }, []);
 
   return (
     <>
-      <ReleaseNotesModal isOpen={openModal} onClose={handleClose} />
+      <ReleaseNotesModal
+        isOpen={openModal}
+        onClose={handleClose}
+        releaseNote={releaseNote}
+        loading={loading}
+      />
       <div className="border-t border-zinc-100 py-3 text-center dark:border-zinc-800/50">
         <button
           onClick={handleVersionClick}
-          className="inline-flex items-center gap-1.5 rounded-full bg-zinc-50 px-3 py-1 text-[10px] font-medium text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:bg-zinc-900/50 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300"
+          disabled={loading || !releaseNote}
+          className="inline-flex items-center gap-1.5 rounded-full bg-zinc-50 px-3 py-1 text-[10px] font-medium text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 dark:bg-zinc-900/50 dark:text-zinc-500 dark:hover:bg-zinc-800 dark:hover:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed"
           title="Release Notes için tıkla"
           aria-label="Versiyon bilgisi — Release Notes"
         >
