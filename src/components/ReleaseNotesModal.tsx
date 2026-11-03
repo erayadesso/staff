@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { isSeen } from "@/lib/release-notes-service";
 
 interface ReleaseNote {
   version: string;
@@ -23,17 +22,6 @@ export default function ReleaseNotesModal({
   releaseNote,
   loading,
 }: ReleaseNotesModalProps) {
-  // Modal açıldığında seen kontrolü yap
-  useEffect(() => {
-    if (!isOpen || !releaseNote || loading) return;
-
-    // API'den gelen versiyon ile localStorage'daki karşılaştır
-    if (isSeen(releaseNote.version)) {
-      // Zaten görülmüş — modal'ı açma
-      onClose();
-    }
-  }, [isOpen, releaseNote, loading, onClose]);
-
   // ESC tuşu ile kapat
   useEffect(() => {
     if (!isOpen) return;
