@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-
-const LOCAL_STORAGE_KEY = "release_notes_seen";
+import { isSeen } from "@/lib/release-notes-service";
 
 interface ReleaseNote {
   version: string;
@@ -28,8 +27,8 @@ export default function ReleaseNotesModal({
   useEffect(() => {
     if (!isOpen || !releaseNote || loading) return;
 
-    const seenVersion = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (seenVersion === releaseNote.version) {
+    // API'den gelen versiyon ile localStorage'daki karşılaştır
+    if (isSeen(releaseNote.version)) {
       // Zaten görülmüş — modal'ı açma
       onClose();
     }
@@ -47,9 +46,6 @@ export default function ReleaseNotesModal({
 
   function handleClose() {
     onClose();
-    if (releaseNote) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, releaseNote.version);
-    }
   }
 
   if (!isOpen || !releaseNote || loading) return null;
