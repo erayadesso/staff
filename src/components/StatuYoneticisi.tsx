@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   DndContext,
   closestCorners,
@@ -10,6 +10,8 @@ import {
   useSensors,
   DragEndEvent,
   DragOverEvent,
+  DragStartEvent,
+  Over,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -17,12 +19,13 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
+  horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { toast } from "sonner";
 
 /* ------------------------------------------------------------------ */
-/* Type'lar                                                            */
+/* Types                                                               */
 /* ------------------------------------------------------------------ */
 
 interface ProcessStatusItem {
@@ -41,316 +44,265 @@ interface RequestStatusItem {
 }
 
 /* ------------------------------------------------------------------ */
-/* Sortable Item Component (iç içe draggable)                          */
+/* Sortable Handle                                                     */
 /* ------------------------------------------------------------------ */
 
-function SortableItem({
-  id,
-  children,
-  className = "",
+function DragHandle() {
+  return (
+    <svg
+      className="h-5 w-5 shrink-0 text-zinc-300 hover:text-zinc-500 dark:text-zinc-600 dark:hover:text-zinc-400"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Ton Badge                                                           */
+/* ------------------------------------------------------------------ */
+
+function TonBadge({ ton }: { ton: string | null }) {
+  if (!ton) return null;
+  const cls =
+    ton === "aktif"
+      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+      : ton === "beklemede"
+      ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+      : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400";
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cls}`}>
+      {ton}
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Aday Durumu Card (sort-only, no drag to parent)                     */
+/* ------------------------------------------------------------------ */
+
+function ProcessCard({
+  item,
+  index,
+  total,
+  onRemove,
 }: {
-  id: string;
-  children: React.ReactNode;
-  className?: string;
+  item: ProcessStatusItem;
+  index: number;
+  total: number;
+  onRemove: (id: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id });
-  const style = {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id, disabled: false });
+
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
   };
 
   return (
-    <div ref={setNodeRef} style={style} className={className}>
+    <div ref={setNodeRef} style={style} className="group">
       <div
         {...attributes}
         {...listeners}
-        className="flex cursor-grab items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm transition hover:border-zinc-400 hover:shadow-md active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-500"
+        className="flex cursor-grab items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm transition hover:border-zinc-400 hover:shadow-md active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-500 dark:hover:bg-zinc-850"
       >
+        {/* Step number */}
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-bold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+          {index + 1}
+        </span>
+
         {/* Drag handle */}
-        <svg
-          className="h-4 w-4 shrink-0 text-zinc-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+        <DragHandle />
+
+        {/* Name */}
+        <span className="flex-1 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+          {item.name}
+        </span>
+
+        {/* Ton badge */}
+        <TonBadge ton={item.ton} />
+
+        {/* Delete */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(item.id);
+          }}
+          className="ml-2 rounded p-1 text-zinc-400 opacity-0 transition hover:text-red-500 group-hover:opacity-100"
+          title="Buradan çıkar"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 8h16M4 16h16"
-          />
-        </svg>
-        {children}
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Aday Durumu Item (sürüklenebilir)                                   */
+/* Talep Durumu Adımı (Sortable Step)                                  */
 /* ------------------------------------------------------------------ */
 
-function ProcessStatusCard({
+function RequestStep({
   item,
-  onEdit,
-  onDelete,
-}: {
-  item: ProcessStatusItem;
-  onEdit: (id: string, name: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState(item.name);
-
-  return (
-    <SortableItem id={item.id}>
-      {editing ? (
-        <div className="flex flex-1 items-center gap-2">
-          <input
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            className="flex-1 rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
-            autoFocus
-            onBlur={() => {
-              setEditing(false);
-              if (editName.trim() && editName !== item.name) {
-                onEdit(item.id, editName.trim());
-              } else {
-                setEditName(item.name);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                setEditing(false);
-                if (editName.trim() && editName !== item.name) {
-                  onEdit(item.id, editName.trim());
-                } else {
-                  setEditName(item.name);
-                }
-              } else if (e.key === "Escape") {
-                setEditing(false);
-                setEditName(item.name);
-              }
-            }}
-          />
-        </div>
-      ) : (
-        <div className="flex flex-1 items-center gap-2">
-          <span className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
-            {item.name}
-          </span>
-          {item.ton && (
-            <span
-              className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                item.ton === "aktif"
-                  ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
-                  : item.ton === "beklemede"
-                  ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
-                  : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-              }`}
-            >
-              {item.ton}
-            </span>
-          )}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditing(true);
-            }}
-            className="rounded p-0.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-          >
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete(item.id);
-            }}
-            className="rounded p-0.5 text-zinc-400 hover:text-red-600 dark:hover:text-red-400"
-          >
-            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
-    </SortableItem>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Talep Durumu Bucket (hedef alan)                                    */
-/* ------------------------------------------------------------------ */
-
-function RequestStatusBucket({
-  item,
-  isOver,
-  onEdit,
-  onRemove,
-  onAddFree,
+  index,
+  activeId,
+  isDragging,
+  onRemoveProcess,
 }: {
   item: RequestStatusItem;
-  isOver: boolean;
-  onEdit: (id: string, name: string, ton: string) => void;
-  onRemove: (requestStatusId: string, processStatusId: string) => void;
-  onAddFree: (processStatusId: string) => void;
+  index: number;
+  activeId: string | null;
+  isDragging: boolean;
+  onRemoveProcess: (requestStatusId: string, processStatusId: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [editName, setEditName] = useState(item.name);
-  const [editTon, setEditTon] = useState(item.ton || "aktif");
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: dndDragging,
+  } = useSortable({ id: `request-${item.id}` });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging || dndDragging ? 0.7 : 1,
+  };
+
+  const isActive = activeId === `process-${item.id}` || activeId?.startsWith(`process-${item.id}-`);
 
   return (
-    <div
-      className={`rounded-2xl border-2 bg-white p-4 shadow-sm transition-all dark:bg-zinc-950 ${
-        isOver
-          ? "border-indigo-400 bg-indigo-50/50 dark:border-indigo-500 dark:bg-indigo-950/20"
+    <div ref={setNodeRef} style={style} className="relative">
+      {/* Timeline line */}
+      {index > 0 && (
+        <div className="absolute -left-5 top-0 h-8 w-0.5 bg-zinc-200 dark:bg-zinc-700" />
+      )}
+      {index < 9 && (
+        <div className="absolute -left-5 bottom-0 h-8 w-0.5 bg-zinc-200 dark:bg-zinc-700" />
+      )}
+
+      <div className={`relative rounded-2xl border-2 bg-white p-5 shadow-sm transition-all dark:bg-zinc-950 ${
+        isActive
+          ? "border-indigo-400 bg-indigo-50/30 dark:border-indigo-500/50 dark:bg-indigo-950/10"
           : "border-zinc-200 dark:border-zinc-800"
-      }`}
-    >
-      {/* Header */}
-      <div className="mb-3 flex items-center justify-between">
-        {editing ? (
-          <div className="flex flex-1 items-center gap-2">
-            <input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="flex-1 rounded border border-zinc-300 px-2 py-1 text-sm font-semibold dark:border-zinc-600 dark:bg-zinc-800"
-              autoFocus
-              onBlur={() => {
-                setEditing(false);
-                if (editName.trim()) onEdit(item.id, editName.trim(), editTon);
-              }}
-            />
-            <select
-              value={editTon}
-              onChange={(e) => setEditTon(e.target.value)}
-              onBlur={() => onEdit(item.id, editName, editTon)}
-              className="rounded border border-zinc-300 px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800"
-            >
-              <option value="aktif">Aktif</option>
-              <option value="beklemede">Beklemede</option>
-              <option value="kapali">Kapalı</option>
-            </select>
+      }`}>
+        {/* Step header — draggable */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="mb-4 flex cursor-grab items-center gap-3 active:cursor-grabbing"
+        >
+          {/* Step number circle */}
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-sm font-bold text-white shadow-lg shadow-indigo-500/30">
+            {index + 1}
           </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  setEditing(true);
-                  setEditName(item.name);
-                }}
-                className="text-left text-sm font-semibold text-zinc-900 hover:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-400"
-              >
-                {item.name}
-              </button>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                  item.ton === "aktif"
-                    ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400"
-                    : item.ton === "beklemede"
-                    ? "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
-                    : "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"
-                }`}
-              >
-                {item.ton}
-              </span>
-            </div>
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-              {item.processStatuses.length}
-            </span>
-          </>
-        )}
-      </div>
 
-      {/* Process statuses */}
-      <div className="space-y-2">
-        {item.processStatuses.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-zinc-300 py-4 text-center text-xs text-zinc-400 dark:border-zinc-700">
-            Aday durumu sürükleyin
-          </p>
-        ) : (
-          <SortableContext
-            items={item.processStatuses.map((ps) => ps.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            <div className="space-y-2">
-              {item.processStatuses.map((ps) => (
-                <ProcessStatusCard
-                  key={ps.id}
-                  item={ps}
-                  onEdit={(id, name) => {
-                    // Edit handled by parent
-                  }}
-                  onDelete={(id) => onRemove(item.id, id)}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        )}
-      </div>
+          {/* Drag handle */}
+          <DragHandle />
 
-      {/* Add free process status button */}
-      {/* <button
-        onClick={() => onAddFree(item.id)}
-        className="mt-3 flex w-full items-center justify-center gap-1 rounded-lg border border-dashed border-zinc-300 py-2 text-xs text-zinc-400 transition hover:border-indigo-400 hover:text-indigo-600 dark:border-zinc-700 dark:hover:border-indigo-500 dark:hover:text-indigo-400"
-      >
-        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        Aday durumu ekle
-      </button> */}
+          {/* Step name */}
+          <h3 className="flex-1 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            {item.name}
+          </h3>
+
+          {/* Ton badge */}
+          <TonBadge ton={item.ton} />
+
+          {/* Count badge */}
+          <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+            {item.processStatuses.length} aday
+          </span>
+        </div>
+
+        {/* Process statuses list */}
+        <div className="space-y-2">
+          {item.processStatuses.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed border-zinc-300 py-6 text-center dark:border-zinc-700">
+              <p className="text-sm text-zinc-400 dark:text-zinc-500">
+                Aday durumu sürükleyip bırakın
+              </p>
+            </div>
+          ) : (
+            <SortableContext
+              items={item.processStatuses.map((ps) => `process-${item.id}-${ps.id}`)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-2">
+                {item.processStatuses
+                  .sort((a, b) => a.order - b.order)
+                  .map((ps, idx) => (
+                    <ProcessCard
+                      key={ps.id}
+                      item={{ ...ps, order: idx }}
+                      index={idx}
+                      total={item.processStatuses.length}
+                      onRemove={(id) => onRemoveProcess(item.id, id)}
+                    />
+                  ))}
+              </div>
+            </SortableContext>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Boşta kalan Aday Durumları Pool                                     */
+/* Free Pool Item                                                      */
 /* ------------------------------------------------------------------ */
 
-function FreeProcessStatusPool({
-  items,
-  onEdit,
-  onDelete,
-  onRemoveFromPool,
+function FreePoolItem({
+  item,
 }: {
-  items: ProcessStatusItem[];
-  onEdit: (id: string, name: string) => void;
-  onDelete: (id: string) => void;
-  onRemoveFromPool: (id: string) => void;
+  item: ProcessStatusItem;
 }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `free-${item.id}` });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        Boştaki Aday Durumları{" "}
-        <span className="text-xs font-normal text-zinc-500">
-          ({items.length} adet)
+    <div ref={setNodeRef} style={style}>
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex cursor-grab items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 shadow-sm transition hover:border-zinc-400 hover:shadow-md active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-900 dark:hover:border-zinc-500"
+      >
+        {/* Drag handle */}
+        <DragHandle />
+
+        {/* Name */}
+        <span className="flex-1 text-sm font-medium text-zinc-800 dark:text-zinc-200">
+          {item.name}
         </span>
-      </h3>
-      {items.length === 0 ? (
-        <p className="py-4 text-center text-xs text-zinc-400">
-          Tüm aday durumları talep durumlarına atanmış.
-        </p>
-      ) : (
-        <div className="space-y-2">
-          <SortableContext
-            items={items.map((ps) => ps.id)}
-            strategy={verticalListSortingStrategy}
-          >
-            {items.map((ps) => (
-              <ProcessStatusCard
-                key={ps.id}
-                item={ps}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            ))}
-          </SortableContext>
-        </div>
-      )}
+
+        {/* Ton */}
+        <TonBadge ton={item.ton} />
+      </div>
     </div>
   );
 }
@@ -367,10 +319,13 @@ export default function StatuYoneticisi() {
   const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const overIdRef = useRef<string | null>(null);
 
-  // Sensors
+  // Sensors — distance 5px activation
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
@@ -380,14 +335,12 @@ export default function StatuYoneticisi() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // credentials: include — Next.js JWT cookie'sini gönderir
         const res = await fetch("/api/statuses/for-dnd", { credentials: "include" });
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
           const baseMsg = errData.error || `HTTP ${res.status}`;
           const detailMsg = errData.details ? ` (${errData.details})` : "";
           const codeMsg = errData.errorCode ? ` [${errData.errorCode}]` : "";
-          // API'den gelen detaylı mesajı kullan
           const msg = baseMsg + detailMsg + codeMsg;
           if (res.status === 401) {
             throw new Error(`Oturum bulunamadı. ${errData.debug ? "Debug: " + JSON.stringify(errData.debug) : "Lütfen çıkış yapıp tekrar giriş yapın."}`);
@@ -416,137 +369,168 @@ export default function StatuYoneticisi() {
     fetchData();
   }, []);
 
-  // Drag & Drop handlers
-  const handleDragOver = (event: DragOverEvent) => {
-    const { active, over } = event;
-    if (!over) return;
+  // Check if ID is a free process ID
+  function isFreeId(id: string): boolean {
+    return freeProcessStatuses.some((ps) => ps.id === id);
+  }
 
-    const overId = over.id.toString();
-    
-    // Check if over a request status bucket
-    const isOverBucket = requestStatuses.some((rs) => rs.id === overId);
-    if (isOverBucket) {
-      setOverId(overId);
+  // Check if ID is a process inside a request status
+  function getProcessInfo(id: string): { requestStatusId: string; processId: string } | null {
+    for (const rs of requestStatuses) {
+      if (rs.processStatuses.some((ps) => ps.id === id)) {
+        return { requestStatusId: rs.id, processId: id };
+      }
+    }
+    return null;
+  }
+
+  // Get the request status ID for a given ID
+  function getRequestStatusId(id: string): string | null {
+    return requestStatuses.find((rs) => rs.id === id)?.id ?? null;
+  }
+
+  // Drag over — highlight target
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { over } = event;
+    if (!over) return;
+    const overIdStr = over.id.toString();
+
+    // Check if over a request step
+    const stepId = overIdStr.startsWith("request-") ? overIdStr : getRequestStatusId(overIdStr.replace("process-", "").replace("free-", ""));
+    if (stepId) {
+      setOverId(stepId);
+      overIdRef.current = stepId;
     } else {
       setOverId(null);
+      overIdRef.current = null;
     }
-  };
+  }, [requestStatuses]);
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  // Drag start
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id.toString());
+  }, []);
+
+  // Drag end
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
 
-    const activeId = active.id.toString();
-    const overId = over.id.toString();
-
-    // Check if dragging from free pool
-    const isFromFreePool = freeProcessStatuses.some((ps) => ps.id === activeId);
-    
-    // Check if over a request status bucket
-    const targetBucket = requestStatuses.find((rs) => rs.id === overId);
-
-    if (isFromFreePool && targetBucket) {
-      // Add to bucket
-      const item = freeProcessStatuses.find((ps) => ps.id === activeId);
-      if (item) {
-        setFreeProcessStatuses((prev) => prev.filter((ps) => ps.id !== activeId));
-        setRequestStatuses((prev) =>
-          prev.map((rs) =>
-            rs.id === overId
-              ? {
-                  ...rs,
-                  processStatuses: [
-                    ...rs.processStatuses,
-                    { ...item, order: rs.processStatuses.length },
-                  ],
-                }
-              : rs
-          )
-        );
-      }
-    } else if (targetBucket && active.data.current?.sortable?.originalIndex !== undefined) {
-      // Reorder within same bucket
-      const oldIndex = active.data.current.sortable.originalIndex;
-      const newIndex = over.id.toString().includes("_")
-        ? overId.split("_")[1]
-        : oldIndex;
-      
-      setRequestStatuses((prev) =>
-        prev.map((rs) => {
-          if (rs.id === overId || overId.startsWith(rs.id + "_")) {
-            const processStatusId = overId.replace(rs.id + "_", "");
-            const processIndex = rs.processStatuses.findIndex(
-              (ps) => ps.id === processStatusId
-            );
-            if (processIndex !== -1 && oldIndex !== newIndex) {
-              const newProcessStatuses = arrayMove(
-                rs.processStatuses,
-                oldIndex,
-                newIndex
-              );
-              return { ...rs, processStatuses: newProcessStatuses };
-            }
-          }
-          return rs;
-        })
-      );
-    }
-
+    const activeIdStr = active.id.toString();
+    const overIdStr = over.id.toString();
     setActiveId(null);
     setOverId(null);
-  };
+    overIdRef.current = null;
 
-  // Edit handlers
-  const handleEditRequestStatus = (
-    id: string,
-    name: string,
-    ton: string
-  ) => {
-    setRequestStatuses((prev) =>
-      prev.map((rs) =>
-        rs.id === id ? { ...rs, name, ton } : rs
-      )
-    );
-  };
+    // Remove from free or process prefix
+    const cleanActiveId = activeIdStr.replace("free-", "");
+    const cleanOverId = overIdStr.replace("request-", "").replace("process-", "");
 
-  const handleRemoveFromBucket = (
-    requestStatusId: string,
-    processStatusId: string
-  ) => {
-    const item = requestStatuses
-      .find((rs) => rs.id === requestStatusId)
-      ?.processStatuses.find((ps) => ps.id === processStatusId);
-    
-    if (item) {
+    // Case 1: Dragging free process → into a request step
+    if (isFreeId(cleanActiveId)) {
+      const item = freeProcessStatuses.find((ps) => ps.id === cleanActiveId);
+      if (!item) return;
+
+      // Find target request status
+      const targetRs = requestStatuses.find((rs) => rs.id === cleanOverId);
+      if (!targetRs) return;
+
+      // Add to target
+      setFreeProcessStatuses((prev) => prev.filter((ps) => ps.id !== cleanActiveId));
       setRequestStatuses((prev) =>
         prev.map((rs) =>
-          rs.id === requestStatusId
+          rs.id === targetRs.id
             ? {
                 ...rs,
-                processStatuses: rs.processStatuses.filter(
-                  (ps) => ps.id !== processStatusId
-                ),
+                processStatuses: [
+                  ...rs.processStatuses,
+                  { ...item, order: rs.processStatuses.length },
+                ],
               }
             : rs
         )
       );
-      setFreeProcessStatuses((prev) => [...prev, item]);
+      toast.success(`"${item.name}" → "${targetRs.name}" adımına eklendi`);
+      return;
     }
-  };
+
+    // Case 2: Moving a process within same request step
+    const activeProc = getProcessInfo(cleanActiveId);
+    if (activeProc) {
+      const targetRs = requestStatuses.find((rs) => rs.id === cleanOverId || rs.id === activeProc.requestStatusId);
+      if (!targetRs) return;
+
+      // Find index of active and over items in the same list
+      const items = targetRs.processStatuses;
+      const oldIdx = items.findIndex((ps) => ps.id === activeProc.processId);
+
+      // Find over item's index
+      const overProc = getProcessInfo(cleanOverId);
+      let newIdx = oldIdx;
+      if (overProc && overProc.requestStatusId === activeProc.requestStatusId) {
+        newIdx = items.findIndex((ps) => ps.id === overProc.processId);
+      } else if (overIdStr.startsWith("request-")) {
+        newIdx = items.length; // Append to end
+      }
+
+      if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
+        setRequestStatuses((prev) =>
+          prev.map((rs) => {
+            if (rs.id === activeProc.requestStatusId) {
+              const newItems = arrayMove(items, oldIdx, newIdx);
+              return { ...rs, processStatuses: newItems };
+            }
+            return rs;
+          })
+        );
+      }
+      return;
+    }
+
+    // Case 3: Moving request step order
+    if (activeIdStr.startsWith("request-") && overIdStr.startsWith("request-")) {
+      const oldIdx = requestStatuses.findIndex((rs) => rs.id === cleanActiveId);
+      const newIdx = requestStatuses.findIndex((rs) => rs.id === cleanOverId);
+      if (oldIdx !== -1 && newIdx !== -1 && oldIdx !== newIdx) {
+        setRequestStatuses((prev) => arrayMove(prev, oldIdx, newIdx));
+      }
+    }
+  }, [freeProcessStatuses, requestStatuses]);
+
+  // Remove process from bucket
+  const handleRemoveProcess = useCallback(
+    (requestStatusId: string, processStatusId: string) => {
+      const item = requestStatuses
+        .find((rs) => rs.id === requestStatusId)
+        ?.processStatuses.find((ps) => ps.id === processStatusId);
+      if (!item) return;
+
+      setRequestStatuses((prev) =>
+        prev.map((rs) =>
+          rs.id === requestStatusId
+            ? { ...rs, processStatuses: rs.processStatuses.filter((ps) => ps.id !== processStatusId) }
+            : rs
+        )
+      );
+      setFreeProcessStatuses((prev) => [...prev, { ...item, order: prev.length }]);
+      toast.info(`"${item.name}" boşta listeye taşındı`);
+    },
+    [requestStatuses]
+  );
 
   // Save handler
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     setSaving(true);
     try {
       const payload = {
-        requestStatuses: requestStatuses.map((rs) => ({
+        requestStatuses: requestStatuses.map((rs, idx) => ({
           id: rs.id,
           name: rs.name,
           ton: rs.ton,
-          order: rs.order,
-          processStatuses: rs.processStatuses.map((ps, idx) => ({
+          order: idx,
+          processStatuses: rs.processStatuses.map((ps, pIdx) => ({
             processStatusId: ps.id,
-            order: idx,
+            order: pIdx,
           })),
         })),
         freeProcessStatuses: freeProcessStatuses.map((ps) => ({
@@ -577,7 +561,7 @@ export default function StatuYoneticisi() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [requestStatuses, freeProcessStatuses]);
 
   if (loading) {
     return (
@@ -596,12 +580,8 @@ export default function StatuYoneticisi() {
         <div className="flex items-start gap-3">
           <span className="text-2xl">⚠️</span>
           <div>
-            <h3 className="font-semibold text-red-800 dark:text-red-300">
-              Veri yüklenemedi
-            </h3>
-            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-              {error}
-            </p>
+            <h3 className="font-semibold text-red-800 dark:text-red-300">Veri yüklenemedi</h3>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
             <button
               onClick={() => window.location.reload()}
               className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-500"
@@ -622,8 +602,7 @@ export default function StatuYoneticisi() {
           Statü Yöneticisi
         </h1>
         <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Aday durumlarını talep durumlarının içine sürükleyerek eşleştirin.
-          Değişiklikleri kaydetmeyi unutmayın.
+          Talep durumlarını yukarıdan aşağıya sürükleyerek sıralayın. Aday durumlarını sağdaki panelden ilgili adımlara sürükleyin.
         </p>
       </div>
 
@@ -632,60 +611,79 @@ export default function StatuYoneticisi() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="rounded-lg bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-500 disabled:opacity-50"
+          className="rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:bg-indigo-500 disabled:opacity-50"
         >
           {saving ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
         </button>
       </div>
 
-      {/* Drag & Drop Area */}
+      {/* DnD Context */}
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
-        onDragStart={(event) => {
-          setActiveId(event.active.id.toString());
-        }}
+        onDragStart={handleDragStart}
       >
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* Request Status Buckets */}
-          <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-              Talep Durumları{" "}
-              <span className="text-xs font-normal text-zinc-500">
-                (Aday durumlarını içlerine sürükleyin)
-              </span>
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {requestStatuses.map((rs) => (
-                <RequestStatusBucket
-                  key={rs.id}
-                  item={{
-                    ...rs,
-                    processStatuses: rs.processStatuses.sort((a, b) => a.order - b.order),
-                  }}
-                  isOver={overId === rs.id}
-                  onEdit={handleEditRequestStatus}
-                  onRemove={handleRemoveFromBucket}
-                  onAddFree={() => {}}
-                />
-              ))}
+        <div className="flex gap-6">
+          {/* Steps Column */}
+          <div className="flex-1">
+            <div className="relative pl-10">
+              {/* Timeline line */}
+              <div className="absolute left-8 top-0 h-full w-0.5 bg-zinc-200 dark:bg-zinc-700" />
+
+              <SortableContext
+                items={requestStatuses.map((rs) => `request-${rs.id}`)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-6 pb-6">
+                  {requestStatuses.map((rs, idx) => (
+                    <RequestStep
+                      key={rs.id}
+                      item={{ ...rs, processStatuses: rs.processStatuses.sort((a, b) => a.order - b.order) }}
+                      index={idx}
+                      activeId={activeId}
+                      isDragging={activeId === `request-${rs.id}`}
+                      onRemoveProcess={handleRemoveProcess}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
             </div>
           </div>
 
-          {/* Free Process Statuses Pool */}
-          <div>
-            <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-              Boştaki Aday Durumları
-            </h2>
-            <div className="sticky top-4">
-              <FreeProcessStatusPool
-                items={freeProcessStatuses}
-                onEdit={() => {}}
-                onDelete={() => {}}
-                onRemoveFromPool={() => {}}
-              />
+          {/* Free Pool Sidebar */}
+          <div className="w-72 shrink-0">
+            <div className="sticky top-6">
+              <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+                <div className="mb-3 flex items-center gap-2">
+                  <svg className="h-5 w-5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                    Boştaki Aday Durumları
+                  </h3>
+                  <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+                    {freeProcessStatuses.length}
+                  </span>
+                </div>
+                {freeProcessStatuses.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-zinc-400">
+                    Tüm aday durumları talep adımlarına atanmış.
+                  </p>
+                ) : (
+                  <SortableContext
+                    items={freeProcessStatuses.map((ps) => `free-${ps.id}`)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    <div className="space-y-2">
+                      {freeProcessStatuses.map((ps) => (
+                        <FreePoolItem key={ps.id} item={ps} />
+                      ))}
+                    </div>
+                  </SortableContext>
+                )}
+              </div>
             </div>
           </div>
         </div>
