@@ -61,7 +61,7 @@ export async function GET() {
     // Tüm mapped process status'ler (lookup)
     let mappedProcessStatuses: any[] = [];
     if (mappedIds.length > 0) {
-      const placeholders = mappedIds.map((_: any, i: number) => `$${i + 2}`).join(",");
+      const placeholders = mappedIds.map((_: any, i: number) => `$${i + 1}`).join(",");
       mappedProcessStatuses = await prisma.$queryRawUnsafe(
         `SELECT id, name, ton, "order" FROM "ProcessStatus" WHERE id IN (${placeholders})`,
         ...mappedIds
@@ -71,7 +71,7 @@ export async function GET() {
     // Free (eşleşmemiş) process status'ler
     let freeProcessStatuses: any[] = [];
     if (mappedIds.length > 0) {
-      const placeholders = mappedIds.map((_: any, i: number) => `$${i + 2}`).join(",");
+      const placeholders = mappedIds.map((_: any, i: number) => `$${i + 1}`).join(",");
       freeProcessStatuses = await prisma.$queryRawUnsafe(
         `SELECT id, name, "order", ton FROM "ProcessStatus" WHERE id NOT IN (${placeholders}) ORDER BY "order" ASC`,
         ...mappedIds
