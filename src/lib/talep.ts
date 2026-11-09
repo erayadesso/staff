@@ -1,12 +1,11 @@
 import { prisma } from "./prisma";
 
 export async function getRequests(showCancelled: boolean = false) {
-  const aktifTalepTonlari = ["yeni", "ic", "dis", "gorsme", "secim", "kabul", "karsilandi"];
-
+  // Yeni sistem: sadece "aktif" ton aktif kabul edilir
   return prisma.request.findMany({
     where: showCancelled ? undefined : {
       status: {
-        ton: { in: aktifTalepTonlari },
+        ton: "aktif",
       },
     },
     include: {

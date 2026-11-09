@@ -9,27 +9,46 @@ import LoadingMessage from "@/components/LoadingMessage";
 
 export const dynamic = "force-dynamic";
 
-async function getAllRequests() {
-  return prisma.request.findMany({
-    include: {
-      department: {
-        select: {
-          name: true,
-          companyId: true,
-          company: { select: { name: true, logoUrl: true } },
-        },
-      },
-      status: { select: { id: true, name: true, order: true, ton: true } },
-      candidates: {
-        select: {
-          id: true,
-          candidateName: true,
-          processStatus: { select: { id: true, name: true, order: true, ton: true } },
-        },
-      },
-    },
-    orderBy: { requestNo: "desc" },
-  });
+/** Aday sürecini Çatı Statüye eşleştir */
+function adayCatiStatuEşleştir(aday: { processStatus?: { name?: string | null } | null }) {
+  const adayDurumu = aday.processStatus?.name;
+  if (!adayDurumu) return "aktif"; // Varsayılan
+
+  const ADAYDAN_CATI_STATU: Record<string, string> = {
+    // Tüm aday durumlarını çatı statü'e eşleştir
+    "TechHead CV Taraması": "aktif",
+    "CV hazırlanıyor": "aktif",
+    "CV müşteriye gönderilmek üzere hazırlandı": "aktif",
+    "CV gönderildi": "aktif",
+    "Müşteri görüşmesi": "aktif",
+    "Müşteri beğendi": "aktif",
+    "İkinci müşteri görüşmesi": "aktif",
+    "Teklif yapıldı": "aktif",
+    "Teklif kabul": "aktif",
+    "Sözleşme süreci": "aktif",
+    "Müşteri beğendi - Teklif Talep Etti": "aktif",
+    "Müşteri görüşmesi tamamlandı - Sonuç bekleniyor": "aktif",
+    "CV kalitesi yetersiz - yeni cv bekleniyor": "aktif",
+    "Müşteri bekleniyor": "aktif",
+    "müşteri satın alma formu bekleniyor": "aktif",
+    "İşe giriş evrakları hazırlanıyor": "aktif",
+    "evraklar teslim edildi": "aktif",
+    "başlangıca hazır": "aktif",
+    "Aday belirlendi": "aktif",
+    "İç değerlendirmede uygun bulunmadı": "aktif",
+    "Müşteri tarafından uygun bulunmadı": "aktif",
+    "Onaylandı": "aktif",
+
+    "İşe başladı": "talep_karsilandi",
+    "Uygun cv bulunamadı. lost": "karsilanamadi",
+    "farklı projeye atandı": "iptal",
+    "Müşteri talebi değişti": "iptal",
+    "Aday süreçten çekildi": "aktif",
+
+    "Aday süreci beklemede": "beklemede",
+  };
+
+  return ADAYDAN_CATI_STATU[adayDurumu.toLowerCase()] ?? "aktif";
 }
 
 export default async function DashboardPage() {
@@ -38,7 +57,26 @@ export default async function DashboardPage() {
 
   const bugun = new Date();
   const [requests, companies, processStatuses, domains] = await Promise.all([
-    getAllRequests(),
+    prisma.request.findMany({
+      include: {
+        department: {
+          select: {
+            name: true,
+            companyId: true,
+            company: { select: { name: true, logoUrl: true } },
+          },
+        },
+        status: { select: { id: true, name: true, order: true, ton: true } },
+        candidates: {
+          select: {
+            id: true,
+            candidateName: true,
+            processStatus: { select: { id: true, name: true, order: true, ton: true } },
+          },
+        },
+      },
+      orderBy: { requestNo: "desc" },
+    }),
     prisma.company.findMany({ orderBy: { name: "asc" } }),
     prisma.processStatus.findMany({ orderBy: { order: "asc" } }),
     prisma.domain.findMany({
@@ -47,18 +85,27 @@ export default async function DashboardPage() {
     }),
   ]);
 
-  // KPI
-  const aktifTalepTonlari = new Set<string>(["yeni", "ic", "dis", "gorsme", "secim", "kabul"]);
+  // --- KPI Hesaplama ---
+  // Sadece "aktif" tonlu talep sayılır
+  const aktifTonlar = new Set(["aktif"]);
   const toplamTalep = requests.length;
-  const aktifTalep = requests.filter((r) => aktifTalepTonlari.has(statununTonu(r.status))).length;
+  const aktifTalep = requests.filter((r) => aktifTonlar.has(statununTonu(r.status))).length;
+
+  // Başarıyla kapandı (hedef ulaştıysa)
   const basariylaKapandiTalep = requests.filter((r) => {
     const hedef = parseInt(r.quantity || "0", 10);
     if (hedef <= 0) return false;
     return r.candidates.filter((a) => a.processStatus?.ton === "karsilandi").length >= hedef;
   }).length;
-  const kapaliTalep = basariylaKapandiTalep;
+
+  // Kapalı talepler (varsayılan gizli)
+  const kapaliTalep = requests.filter((r) => isKapaliDurum(r.status)).length;
+
+  // Toplam aday
   const toplamAday = requests.reduce((a, r) => a + r.candidates.length, 0);
+  // İşe başlayan aday (karsilandi tonu)
   const iseBasanAday = requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.ton === "karsilandi").length, 0);
+  // Bekleyen aday (karsilandi tonu DISIN)
   const bekleyenAday = requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.ton !== "karsilandi").length, 0);
 
   // Uyarılar — başarıyla kapanan talepler uyarıda gösterilmez
@@ -70,14 +117,15 @@ export default async function DashboardPage() {
     return kalan >= 0 && kalan <= 7;
   });
 
-  // Firma analiz
+  // Firma analiz — sadece aktif tonlu
   const firmaAnaliz = companies.map((c) => {
     const ft = requests.filter((r) => r.department.companyId === c.id);
     const basariliTalep = ft.filter((r) => isBasariKapatildi(r.candidates, r.quantity)).length;
-    const aktifTalep = ft.filter((r) => !isKapaliDurum(r.status) && !isBasariKapatildi(r.candidates, r.quantity)).length;
+    // Sadece aktif tonlu sayılır
+    const aktifTalep = ft.filter((r) => statununTonu(r.status) === "aktif").length;
     const iptalTalep = ft.filter((r) => {
       const rStatusTon = statununTonu(r.status);
-      return rStatusTon === "kapandi" && !isBasariKapatildi(r.candidates, r.quantity);
+      return rStatusTon === "kapali" && !isBasariKapatildi(r.candidates, r.quantity);
     }).length;
     const hedefToplam = ft.reduce((a, r) => a + (parseInt(r.quantity || "0") || 0), 0);
     const iseBaslayanAday = ft.reduce((a, r) => a + r.candidates.filter((ca) => ca.processStatus?.ton === "karsilandi").length, 0);
@@ -97,11 +145,22 @@ export default async function DashboardPage() {
     };
   }).filter((f) => f.toplamTalep > 0).sort((a, b) => b.toplamTalep - a.toplamTalep);
 
-  // Grafige veriler
-  const durumDagilimi = processStatuses.map((s) => ({
-    name: s.name,
-    value: requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.name === s.name).length, 0),
-  })).filter((d) => d.value > 0);
+  // --- Grafik Verileri: 5 Çatı Statü ---
+  // Adayları Çatı Statüye eşleştirerek grupla
+  const cavusStatolari = ["aktif", "beklemede", "talep_karsilandi", "karsilanamadi", "iptal"];
+  const pipelineData = cavusStatolari.reduce((acc, catiStatu) => {
+    const adaySayisi = requests.flatMap((r) => r.candidates).filter(
+      (aday) => adayCatiStatuEşleştir(aday) === catiStatu
+    ).length;
+    acc[catiStatu] = adaySayisi;
+    return acc;
+  }, {} as Record<string, number>);
+
+  // Dashboard chart'ına uygun formatta sırala
+  const pipelineDataSirali = cavusStatolari.map((catiStatu) => ({
+    name: catiStatu.replace(/_/g, " "), // _ -> space
+    value: pipelineData[catiStatu] || 0,
+  })).filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
 
   const firmaTalepBar = firmaAnaliz.map((f) => ({ name: f.firma.slice(0, 15), value: f.toplamTalep }));
 
@@ -244,11 +303,6 @@ export default async function DashboardPage() {
     return result;
   }
 
-  const pipelineData = processStatuses.map((s) => ({
-    name: s.name.length > 20 ? s.name.slice(0, 18) + "…" : s.name,
-    value: requests.reduce((a, r) => a + r.candidates.filter((a) => a.processStatus?.name === s.name).length, 0),
-  })).filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
-
   function getProgressBar(pct: number) {
     const renk = pct >= 100 ? "bg-emerald-500" : pct >= 50 ? "bg-blue-500" : pct >= 25 ? "bg-amber-500" : "bg-zinc-500";
     return { pct, renk };
@@ -257,179 +311,179 @@ export default async function DashboardPage() {
   return (
     <Suspense fallback={<LoadingMessage />}>
       <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-            Yönetici Özeti
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Outsource talepleri ve doluluk durumu — {new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
-          </p>
-        </div>
-        <ExcelIndirButton />
-      </div>
-
-      {/* 1. Üst KPI Kartları */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {[
-          { label: "Toplam Talep", deger: toplamTalep, alt: `${aktifTalep} aktif`, renk: "text-blue-600 dark:text-blue-400" },
-          { label: "Aktif Talep", deger: aktifTalep, alt: "açık pozisyon", renk: "text-amber-600 dark:text-amber-400" },
-          { label: "Kapalı Talep", deger: kapaliTalep, alt: "başarıyla tamamlandı", renk: "text-emerald-600 dark:text-emerald-400" },
-          { label: "Toplam Aday", deger: toplamAday, alt: `${iseBasanAday} işe başladı`, renk: "text-purple-600 dark:text-purple-400" },
-          { label: "Aday Pipeline", deger: bekleyenAday, alt: "bekleyen", renk: "text-indigo-600 dark:text-indigo-400" },
-        ].map((s) => (
-          <div key={s.label} className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
-            <div className="absolute top-0 right-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-gradient-to-br from-blue-500/5 to-transparent dark:from-blue-400/10" />
-            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-              {s.label}
-            </p>
-            <p className={`mt-2 text-3xl font-bold ${s.renk}`}>
-              {s.deger}
-            </p>
-            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-              {s.alt}
+        {/* Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+              Yönetici Özeti
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Outsource talepleri ve doluluk durumu — {new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
             </p>
           </div>
-        ))}
-      </div>
+          <ExcelIndirButton />
+        </div>
 
-      {/* 6. Kritik Uyarılar */}
-      {yaklasan.length > 0 && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
-          <span className="text-2xl">🟡</span>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-              {yaklasan.length} talebin deadline&apos;ı 7 gün içinde doluyor
-            </p>
-            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-              Yaklaşan son tarihler — acil işlem gereklidir.
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {yaklasan.map((r) => {
-                const kalan = Math.ceil((r.deadline!.getTime() - bugun.getTime()) / 86400000);
-                return (
-                  <Link
-                    key={r.id}
-                    href={`/dashboard/requests/${r.id}`}
-                    className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300 dark:hover:bg-amber-950/40 transition"
-                  >
-                    #{r.requestNo} · {r.department.name} · {kalan} gün kaldı
-                  </Link>
-                );
-              })}
+        {/* 1. Üst KPI Kartları */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {[
+            { label: "Toplam Talep", deger: toplamTalep, alt: `${aktifTalep} aktif`, renk: "text-blue-600 dark:text-blue-400" },
+            { label: "Aktif Talep", deger: aktifTalep, alt: "açık pozisyon", renk: "text-amber-600 dark:text-amber-400" },
+            { label: "Kapalı Talep", deger: kapaliTalep, alt: "başarıyla tamamlandı", renk: "text-emerald-600 dark:text-emerald-400" },
+            { label: "Toplam Aday", deger: toplamAday, alt: `${iseBasanAday} işe başladı`, renk: "text-purple-600 dark:text-purple-400" },
+            { label: "Aday Pipeline", deger: bekleyenAday, alt: "bekleyen", renk: "text-indigo-600 dark:text-indigo-400" },
+          ].map((s) => (
+            <div key={s.label} className="group relative overflow-hidden rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950">
+              <div className="absolute top-0 right-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-gradient-to-br from-blue-500/5 to-transparent dark:from-blue-400/10" />
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                {s.label}
+              </p>
+              <p className={`mt-2 text-3xl font-bold ${s.renk}`}>
+                {s.deger}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                {s.alt}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* 2. Kritik Uyarılar */}
+        {yaklasan.length > 0 && (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/20">
+            <span className="text-2xl">🟡</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                {yaklasan.length} talebin deadline&apos;ı 7 gün içinde doluyor
+              </p>
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                Yaklaşan son tarihler — acil işlem gereklidir.
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {yaklasan.map((r) => {
+                  const kalan = Math.ceil((r.deadline!.getTime() - bugun.getTime()) / 86400000);
+                  return (
+                    <Link
+                      key={r.id}
+                      href={`/dashboard/requests/${r.id}`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 dark:border-amber-800 dark:bg-zinc-900 dark:text-amber-300 dark:hover:bg-amber-950/40 transition"
+                    >
+                      #{r.requestNo} · {r.department.name} · {kalan} gün kaldı
+                    </Link>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 2. Talep Dağılımı + 3. Firma Analizi + 4. Trend + 5. Pipeline */}
-      <DashboardCharts
-        durumDagilimi={durumDagilimi}
-        firmaTalepBar={firmaTalepBar}
-        fillRateBar={fillRateBar}
-        trendData30={trendData30}
-        trendData90={trendData90}
-        trendData180={trendData180}
-        trendDataTumu={trendDataTumu}
-        pipelineData={pipelineData}
-        domainTrendKeys={domainTrendKeys}
-        domainTrend30={domainTrend30}
-        domainTrend90={domainTrend90}
-        domainTrend180={domainTrend180}
-        domainTrendTumu={domainTrendTumu}
-      />
+        {/* 2. Talep Dağılımı + 3. Firma Analizi + 4. Trend + 5. Pipeline */}
+        <DashboardCharts
+          durumDagilimi={pipelineDataSirali}
+          firmaTalepBar={firmaTalepBar}
+          fillRateBar={fillRateBar}
+          trendData30={trendData30}
+          trendData90={trendData90}
+          trendData180={trendData180}
+          trendDataTumu={trendDataTumu}
+          pipelineData={pipelineDataSirali}
+          domainTrendKeys={domainTrendKeys}
+          domainTrend30={domainTrend30}
+          domainTrend90={domainTrend90}
+          domainTrend180={domainTrend180}
+          domainTrendTumu={domainTrendTumu}
+        />
 
-      {/* 3. Firma Bazında Tablo */}
-      <section>
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
-              Firma Bazında İşe Başlama
-            </h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Firmaların talep sayısı, aday durumu ve işe başlama oranı
-            </p>
+        {/* 3. Firma Bazında Tablo */}
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                Firma Bazında İşe Başlama
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Firmaların talep sayısı, aday durumu ve işe başlama oranı
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <table className="w-full min-w-[600px] text-left text-sm">
-            <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
-              <tr className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                <th className="px-4 py-3 font-medium">Firma</th>
-                <th className="px-4 py-3 font-medium text-center">Talep</th>
-                <th className="px-4 py-3 font-medium text-center">Başarılı</th>
-                <th className="px-4 py-3 font-medium text-center">Açık</th>
-                <th className="px-4 py-3 font-medium text-center">İptal</th>
-                <th className="px-4 py-3 font-medium">İşe Başlama / Hedef</th>
-                <th className="px-4 py-3 font-medium text-center">Geçen Deadline</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
-              {firmaAnaliz.map((f) => (
-                <tr key={f.firma} className="transition hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
-                  <td className="px-4 py-4">
-                    <div className="flex items-center gap-3">
-                      {f.logoUrl ? (
-                        <img src={f.logoUrl} alt={f.firma} className="h-8 w-8 rounded object-contain" />
-                      ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded bg-zinc-100 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                          {f.firma.charAt(0).toUpperCase()}
+          <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <table className="w-full min-w-[600px] text-left text-sm">
+              <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/50">
+                <tr className="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  <th className="px-4 py-3 font-medium">Firma</th>
+                  <th className="px-4 py-3 font-medium text-center">Talep</th>
+                  <th className="px-4 py-3 font-medium text-center">Başarılı</th>
+                  <th className="px-4 py-3 font-medium text-center">Açık</th>
+                  <th className="px-4 py-3 font-medium text-center">İptal</th>
+                  <th className="px-4 py-3 font-medium">İşe Başlama / Hedef</th>
+                  <th className="px-4 py-3 font-medium text-center">Geçen Deadline</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                {firmaAnaliz.map((f) => (
+                  <tr key={f.firma} className="transition hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-3">
+                        {f.logoUrl ? (
+                          <img src={f.logoUrl} alt={f.firma} className="h-8 w-8 rounded object-contain" />
+                        ) : (
+                          <div className="flex h-8 w-8 items-center justify-center rounded bg-zinc-100 text-xs font-bold text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                            {f.firma.charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                        <p className="font-semibold text-zinc-900 dark:text-zinc-100">{f.firma}</p>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="rounded-lg bg-zinc-100 px-2 py-1 font-semibold text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">{f.toplamTalep}</span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="rounded-lg bg-emerald-100 px-2 py-1 font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">{f.basariliTalep}</span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="rounded-lg bg-blue-100 px-2 py-1 font-semibold text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">{f.aktifTalep}</span>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      <span className="rounded-lg bg-red-100 px-2 py-1 font-semibold text-red-800 dark:bg-red-950/40 dark:text-red-300">{f.iptalTalep}</span>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-zinc-500 dark:text-zinc-400">{f.iseBaslayan}/{f.hedef || "—"}</span>
+                          <span className={`font-semibold ${
+                            f.doluluk >= 100 ? "text-emerald-600 dark:text-emerald-400" :
+                            f.doluluk >= 50 ? "text-blue-600 dark:text-blue-400" :
+                            "text-zinc-600 dark:text-zinc-400"
+                          }`}>%{f.doluluk}</span>
                         </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                          <div
+                            className={`h-full rounded-full transition-all ${getProgressBar(f.doluluk).renk}`}
+                            style={{ width: `${Math.min(f.doluluk, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 text-center">
+                      {f.gecikmis > 0 ? (
+                        <span className="rounded-lg bg-red-100 px-2 py-1 font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">{f.gecikmis}</span>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
                       )}
-                      <p className="font-semibold text-zinc-900 dark:text-zinc-100">{f.firma}</p>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="rounded-lg bg-zinc-100 px-2 py-1 font-semibold text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200">{f.toplamTalep}</span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="rounded-lg bg-emerald-100 px-2 py-1 font-semibold text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">{f.basariliTalep}</span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="rounded-lg bg-blue-100 px-2 py-1 font-semibold text-blue-800 dark:bg-blue-950/40 dark:text-blue-300">{f.aktifTalep}</span>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    <span className="rounded-lg bg-red-100 px-2 py-1 font-semibold text-red-800 dark:bg-red-950/40 dark:text-red-300">{f.iptalTalep}</span>
-                  </td>
-                  <td className="px-4 py-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-500 dark:text-zinc-400">{f.iseBaslayan}/{f.hedef || "—"}</span>
-                        <span className={`font-semibold ${
-                          f.doluluk >= 100 ? "text-emerald-600 dark:text-emerald-400" :
-                          f.doluluk >= 50 ? "text-blue-600 dark:text-blue-400" :
-                          "text-zinc-600 dark:text-zinc-400"
-                        }`}>%{f.doluluk}</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                        <div
-                          className={`h-full rounded-full transition-all ${getProgressBar(f.doluluk).renk}`}
-                          style={{ width: `${Math.min(f.doluluk, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-4 text-center">
-                    {f.gecikmis > 0 ? (
-                      <span className="rounded-lg bg-red-100 px-2 py-1 font-semibold text-red-700 dark:bg-red-950/40 dark:text-red-300">{f.gecikmis}</span>
-                    ) : (
-                      <span className="text-zinc-400">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {firmaAnaliz.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                    Henüz firma verisi yok.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+                    </td>
+                  </tr>
+                ))}
+                {firmaAnaliz.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-zinc-500 dark:text-zinc-400">
+                      Henüz firma verisi yok.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </div>
     </Suspense>
   );

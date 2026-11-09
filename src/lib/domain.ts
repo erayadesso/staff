@@ -63,9 +63,10 @@ export function statununTonu(
 
 /**
  * Kapalı (terminal) tonlar: bu tondaki bir talep açık pozisyon sayılmaz.
- * Ton bazlı: kapanan ve beklemeye alınan süreçler kapalı kabul edilir.
+ * Eski sistem: kapandi, bekliyor
+ * Yeni sistem: kapali, beklemede
  */
-export const KAPALI_TONLARI = new Set<string>(["kapandi", "bekliyor"]);
+export const KAPALI_TONLARI = new Set<string>(["kapandi", "bekliyor", "kapali", "beklemede"]);
 
 /** Aday tarafında ilerlemeye sayılmayan çıkış tonları (red/çekilme/bekleme). */
 export const ADAY_CIKIS_TONLARI = new Set<string>(["kapandi", "bekliyor"]);
@@ -191,32 +192,60 @@ export function adayIlerlemeSkoru(durum: StatuNesne | null | undefined): number 
   return durum.order;
 }
 
-/** Aday statü adı -> talep tonu haritası (hard-coded UI sabiti, DB'den bağımsız). */
-const ADAYDAN_TALEPE = new Map<string, string>([
-  ["Aday Belirlendi", "ic"],
-  ["İç Değerlendirmede", "ic"],
-  ["Sunum İçin Onaylandı", "ic"],
-  ["NoName CV Hazırlanıyor", "dis"],
-  ["Müşteriye Sunuma Hazır", "dis"],
-  ["Müşteriye İletildi", "dis"],
-  ["Müşteri Değerlendirmesinde", "dis"],
-  ["Görüşme Talep Edildi", "gorsme"],
-  ["Görüşme Planlandı", "gorsme"],
-  ["Görüşme Tamamlandı", "gorsme"],
-  ["Dış Kaynak Hizmet Teklifi İletildi", "dis"],
-  ["Aday Seçildi", "secim"],
-  ["Başlangıç Tarihi Netleştiriliyor", "secim"],
-  ["İşe Giriş Evrakları Hazırlanıyor", "kabul"],
-  ["Evraklar Teslim Edildi", "kabul"],
-  ["Başlangıca Hazır", "kabul"],
-  ["İşe Başladı", "karsilandi"],
+/**
+ * Aday süreci durumları → Talep durumu eşleştirme haritası.
+ * null = Talep durumu değişmez, string = doğrudan talep durumu adı
+ */
+export const ADAYDAN_TALEP_DURUMU = new Map<string, string | null>([
+  // CV Süreci
+  ["TechHead CV Taraması", null],
+  ["CV hazırlanıyor", null],
+  ["CV müşteriye gönderilmek üzere hazırlandı", null],
+  ["CV gönderildi", "📤 Müşteriye Sunuldu"],
+  ["adesso - Aday tarama sürecinde", null],
+
+  // Müşteri Süreci
+  ["Müşteri görüşmesi", "🤝 Görüşme Yapılıyor"],
+  ["Müşteri görüşmesi olumsuz", null],
+  ["Müşteri beğenmedi", null],
+  ["Müşteri beğendi", "🤝 Görüşme Yapılıyor"],
+  ["adesso - Aday görüşmesi", "🤝 Görüşme Yapılıyor"],
+  ["İkinci müşteri görüşmesi", "🤝 Görüşme Yapılıyor"],
+  ["Müşteri görüşmesi tamamlandı - Sonuç bekleniyor", null],
+  ["Müşteri beğendi - Teklif Talep Etti", "🎯 Aday Seçildi"],
+
+  // Teklif/Sözleşme
+  ["Teklif yapıldı", "🎯 Aday Seçildi"],
+  ["Teklif kabul", "📝 İşe Giriş Süreci"],
+  ["Sözleşme süreci", "📝 İşe Giriş Süreci"],
+
+  // Çıkış/Kapanış
+  ["Onaylandı", null],
+  ["İşe başladı", "✅ Talep Karşılandı"],
+  ["Uygun CV Bulunamadı. LOST", "🔴 Karşılanamadı"],
+  ["Farklı projeye atandı", "❌ İptal Edildi"],
+  ["Müşteri talebi değişti", "❌ İptal Edildi"],
+
+  // Diğer
+  ["CV Kalitesi Yetersiz - Yeni CV Bekleniyor", null],
+  ["Aday süreçten çekildi", null],
+  ["Müşteri bekleniyor", null],
+  ["Aday süreci beklemede", "⏸️ Beklemede"],
+  ["Müşteri Satın Alma Formu Bekleniyor", null],
+  ["İşe giriş evrakları hazırlanıyor", "📝 İşe Giriş Süreci"],
+  ["Evraklar teslim edildi", "📝 İşe Giriş Süreci"],
+  ["Başlangıca hazır", "📝 İşe Giriş Süreci"],
 ]);
 
 /**
- * Talebin statüsünü, talepteki EN İLERİ aktif adayın süreç durumuna göre
- * belirler ve eşleşen TALEP DURUM id'sini döndürür.
- * - Çıkış (reddedilen/çekilen/beklemedeki) adaylar ilerlemeye sayılmaz.
- * - Hiç aktif aday yoksa ya da eşleşme yoksa varsayılan talep durumu döner.
+ * Aday süreci durumuna göre Talep durumunu otomatik belirler.
+ * Doğrudan Aday → Talep Durumu eşleştirme kullanır.
+ * Sadece "aktif" tonlu adaylar ilerlemeye sayılır.
+ *
+ * @param adayDurumlari - Talepteki adayların süreç durumları
+ * @param talepDurumlari - Mevcut tüm talep durumları
+ * @param fallback - Hiç eşleşme yoksa kullanılacak fallback talep durumu
+ * @returns Eşleşen talep durumu ID'si veya fallback
  */
 export function talepDurumuBelirle(
   adayDurumlari: (StatuNesne | null | undefined)[],
@@ -224,31 +253,50 @@ export function talepDurumuBelirle(
   fallback: StatuNesne | null = null
 ): string | null {
   let enIleriSira = -1;
-  let secilenTon: string | null = null;
+  let secilenTalepDurumuAdi: string | null = null;
 
-  for (const d of adayDurumlari) {
-    if (!d) continue;
-    const ton = d.ton;
-    if (!ton) continue;
-    if (ADAY_CIKIS_TONLARI.has(ton)) continue;
-    const talepTon = ADAYDAN_TALEPE.get(d.name || "");
-    if (!talepTon) continue;
-    const sira = typeof d.order === "number" ? d.order : -1;
+  for (const aday of adayDurumlari) {
+    if (!aday) continue;
+    const ton = aday.ton;
+
+    // Sadece aktif adaylar ilerlemeye sayılır
+    if (ton !== "aktif") continue;
+
+    const adayAdi = aday.name || "";
+    // Case-insensitive eşleşme (harf büyük/küçüklük farkını yok say)
+    const hedefTalepDurumu = findMapping(adayAdi);
+    if (hedefTalepDurumu === null) continue; // null → talep durumu değişmez
+
+    // Sıra bilgisini adaydan al
+    const sira = typeof aday.order === "number" ? aday.order : -1;
     if (sira > enIleriSira) {
       enIleriSira = sira;
-      secilenTon = talepTon;
+      secilenTalepDurumuAdi = hedefTalepDurumu ?? null;
     }
   }
 
-  if (secilenTon !== null) {
-    // Eşleşen tondaki adaylardan en üst siradakini seç
-    const aday = talepDurumlari
-      .filter((t) => t.ton === secilenTon)
-      .sort((a, b) => (b.order ?? 0) - (a.order ?? 0))[0];
-    if (aday?.id) return aday.id;
+  // Eşleşen Talep Durumunu bul ve ID'sini döndür
+  if (secilenTalepDurumuAdi) {
+    const talep = talepDurumlari.find((t) => t.name === secilenTalepDurumuAdi);
+    if (talep?.id) return talep.id;
   }
 
   return fallback?.id ?? null;
+}
+
+/**
+ * Case-insensitive ADAYDAN_TALEP_DURUMU araması
+ */
+function findMapping(adayAdi: string): string | null | undefined {
+  // Önce direkt eşleşme (hızlı)
+  const direct = ADAYDAN_TALEP_DURUMU.get(adayAdi);
+  if (direct !== undefined) return direct;
+  // Yoksa case-insensitive eşleşme
+  const lower = adayAdi.toLowerCase();
+  for (const [key, value] of ADAYDAN_TALEP_DURUMU) {
+    if (key.toLowerCase() === lower) return value;
+  }
+  return undefined;
 }
 
 /**

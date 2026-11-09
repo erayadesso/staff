@@ -14,13 +14,16 @@ const ADMIN_NAME = "Eray Aykılıç";
 const ADMIN_PASSWORD = "Nevsehir123456789!";
 
 const TALEP_DURUMLARI = [
-  "🆕 Yeni Talep",
-  "🔵 Süreç Devam Ediyor",
-  "🟡 Sürece Dahil Olmadık",
-  "🔴 Lost",
-  "✅ Completed",
-  "🔵 Beklemede",
-  "🔴 Geri Çekildi",
+  { name: "🆕 Talep Alındı", order: 0 },
+  { name: "🔍 İç Değerlendirme", order: 1 },
+  { name: "📤 Müşteriye Sunuldu", order: 2 },
+  { name: "🤝 Görüşme Yapılıyor", order: 3 },
+  { name: "🎯 Aday Seçildi", order: 4 },
+  { name: "📝 İşe Giriş Süreci", order: 5 },
+  { name: "✅ Talep Karşılandı", order: 6 },
+  { name: "⏸️ Beklemede", order: 7 },
+  { name: "❌ İptal Edildi", order: 8 },
+  { name: "🔴 Karşılanamadı", order: 9 },
 ];
 
 const SUREC_DURUMLARI = [
@@ -118,10 +121,21 @@ async function main() {
 
   // 3) Talep durumları
   for (let i = 0; i < TALEP_DURUMLARI.length; i++) {
+    const item = TALEP_DURUMLARI[i];
+    const name = typeof item === "string" ? item : item.name;
+    const order = typeof item === "string" ? i : item.order;
+    
+    // Ton belirleme
+    let ton = "varsayilan";
+    if (order <= 5) ton = "aktif";       // Talep Alındı → İşe Giriş Süreci
+    else if (order === 6) ton = "kapali"; // Talep Karşılandı
+    else if (order === 7) ton = "beklemede"; // Beklemede
+    else ton = "kapali";                  // İptal, Karşılanamadı
+    
     await prisma.requestStatus.upsert({
-      where: { name: TALEP_DURUMLARI[i] },
-      update: { order: i },
-      create: { name: TALEP_DURUMLARI[i], order: i },
+      where: { name },
+      update: { order, ton },
+      create: { name, order, ton },
     });
   }
 

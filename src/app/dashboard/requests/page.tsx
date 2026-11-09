@@ -14,11 +14,11 @@ import LoadingMessage from "@/components/LoadingMessage";
 export const dynamic = "force-dynamic";
 
 async function getFilteredRequests(showCancelled: boolean) {
-  const aktifTalepTonlari = ["yeni", "ic", "dis", "gorsme", "secim", "kabul", "karsilandi"];
+  // Yeni sistem: sadece "aktif" ton aktif kabul edilir
   return prisma.request.findMany({
     where: showCancelled ? undefined : {
       status: {
-        ton: { in: aktifTalepTonlari },
+        ton: "aktif",
       },
     },
     include: {

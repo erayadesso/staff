@@ -10,18 +10,8 @@ interface Statu {
   ton?: string | null;
 }
 
-const TONLAR = [
-  "yeni",
-  "ic",
-  "dis",
-  "gorsme",
-  "secim",
-  "kabul",
-  "karsilandi",
-  "bekliyor",
-  "kapandi",
-  "varsayilan",
-];
+const TALEP_TONLARI = ["aktif", "beklemede", "kapali"];
+const SUREC_TONLARI = ["aktif", "beklemede", "kapali", "yeni", "ic", "dis", "gorsme", "secim", "kabul", "karsilandi", "bekliyor", "kapandi", "varsayilan"];
 
 export default function StatuYonetimi({
   tip,
@@ -34,11 +24,13 @@ export default function StatuYonetimi({
 }) {
   const router = useRouter();
   const [yeniAd, setYeniAd] = useState("");
-  const [yeniTon, setYeniTon] = useState("varsayilan");
+  const [yeniTon, setYeniTon] = useState(tip === "talep" ? "aktif" : "aktif");
   const [duzenlenen, setDuzenlenen] = useState<string | null>(null);
   const [duzenlemeAdi, setDuzenlemeAdi] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const tonSeceknleri = tip === "talep" ? TALEP_TONLARI : SUREC_TONLARI;
 
   async function ekle(e: React.FormEvent) {
     e.preventDefault();
@@ -59,7 +51,7 @@ export default function StatuYonetimi({
       }
       toast.success("Statü eklendi.");
       setYeniAd("");
-      setYeniTon("varsayilan");
+      setYeniTon(tip === "talep" ? "aktif" : "aktif");
       router.refresh();
     } catch {
       setError("Bir hata oluştu.");
@@ -189,9 +181,9 @@ export default function StatuYonetimi({
           value={yeniTon}
           onChange={(e) => setYeniTon(e.target.value)}
           className="shrink-0 rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-700 outline-none focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
-          title="Statü tonu"
+          title={tip === "talep" ? "Statü tonu ( Talepler için: aktif, beklemede, kapali )" : "Statü tonu"}
         >
-          {TONLAR.map((t) => (
+          {tonSeceknleri.map((t) => (
             <option key={t} value={t}>
               {t}
             </option>

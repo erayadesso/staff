@@ -4,18 +4,16 @@ import { getSessionUser } from "@/lib/session";
 
 type Tip = "talep" | "surec";
 
-const GECERLI_TONLAR = new Set([
-  "yeni",
-  "ic",
-  "dis",
-  "gorsme",
-  "secim",
-  "kabul",
-  "karsilandi",
-  "bekliyor",
-  "kapandi",
-  "varsayilan",
-]);
+/** Talep statüleri için geçerli tonlar (yeni sistem) */
+const TALEP_TONLARI = new Set(["aktif", "beklemede", "kapali"]);
+
+/** Talep statüsü için order bazlı otomatik ton atama */
+function otomatikTonBelirle(order: number): string {
+  if (order <= 5) return "aktif";       // Talep Alındı → İşe Giriş Süreci
+  if (order === 6) return "kapali";     // Talep Karşılandı
+  if (order === 7) return "beklemede";  // Beklemede
+  return "kapali";                      // İptal, Karşılanamadı
+}
 
 export async function POST(request: NextRequest) {
   const user = await getSessionUser();
@@ -34,12 +32,14 @@ export async function POST(request: NextRequest) {
   }
 
   const ad = body.ad.trim();
-  let ton = body.ton?.trim() || "varsayilan";
-  if (!GECERLI_TONLAR.has(ton)) ton = "varsayilan";
+  let ton = "aktif"; // Varsayılan: aktif
 
   try {
     if (body.tip === "talep") {
       const order = body.sira ?? (await prisma.requestStatus.count());
+      // Otomatik ton atama — API'den gelen ton yoksa veya geçersizse otomatik ata
+      const requestedTon = body.ton?.trim();
+      ton = requestedTon && TALEP_TONLARI.has(requestedTon) ? requestedTon : otomatikTonBelirle(order);
       const kayit = await prisma.requestStatus.create({ data: { name: ad, order, ton } });
       return NextResponse.json({ ok: true, kayit }, { status: 201 });
     }
@@ -75,7 +75,13 @@ export async function PATCH(request: NextRequest) {
   const data: { name: string; ton?: string } = { name: body.ad.trim() };
   if (body.ton !== undefined && body.ton !== null && body.ton.trim()) {
     const ton = body.ton.trim();
-    data.ton = GECERLI_TONLAR.has(ton) ? ton : "varsayilan";
+    if (body.tip === "talep") {
+      data.ton = TALEP_TONLARI.has(ton) ? ton : undefined;
+    } else {
+      // Süreç statüleri için eski tonları da kabul et (backward compatibility)
+      const eskiTonlar = new Set(["yeni","ic","dis","gorsme","secim","kabul","karsilandi","bekliyor","kapandi","varsayilan", ...TALEP_TONLARI]);
+      data.ton = eskiTonlar.has(ton) ? ton : undefined;
+    }
   }
 
   try {
