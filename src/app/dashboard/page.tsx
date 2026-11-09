@@ -115,9 +115,9 @@ export default async function DashboardPage() {
   const firmaTalepBar = firmaAnaliz.map((f) => ({ name: f.firma.slice(0, 15), value: f.toplamTalep }));
 
   const fillRateBar = firmaAnaliz.map((f) => ({
-    firma: f.firma.slice(0, 15),
+    firma: f.firma,
     doluluk: f.doluluk,
-    renk: f.doluluk >= 80 ? "#10b981" : f.doluluk >= 50 ? "#f59e0b" : "#ef4444",
+    renk: f.doluluk >= 80 ? "#10b981" : f.doluluk >= 50 ? "#3b82f6" : "#f59e0b",
   }));
 
   // Trend hesaplama — hafta bazlı, soldan sağa: eski → yeni

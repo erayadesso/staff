@@ -76,8 +76,19 @@ export default function DashboardCharts({
               <BarChart data={fillRateBar} layout="vertical" margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />
                 <XAxis type="number" className="text-xs" tick={{ fontSize: 10 }} domain={[0, 100]} />
-                <YAxis dataKey="firma" type="category" className="text-xs" width={100} tick={{ fontSize: 10 }} />
-                <Tooltip />
+                <YAxis dataKey="firma" type="category" className="text-xs" width={150} tick={{ fontSize: 12 }} />
+                <Tooltip content={({ active, payload }) => {
+                  if (active && payload && payload.length) {
+                    const data = payload[0].payload as { firma: string; doluluk: number };
+                    return (
+                      <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-sm dark:border-zinc-700 dark:bg-zinc-900">
+                        <p className="font-semibold text-zinc-900 dark:text-zinc-100">{data.firma}</p>
+                        <p className="text-sm text-zinc-600 dark:text-zinc-400">Başarı: %{data.doluluk}</p>
+                      </div>
+                    );
+                  }
+                  return null;
+                }} />
                 <Bar dataKey="doluluk" radius={[0, 4, 4, 0]}>
                   {fillRateBar.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.renk} />
