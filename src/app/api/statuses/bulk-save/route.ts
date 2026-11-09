@@ -36,65 +36,63 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Transaction ile atomik güncelleme
-    await prisma.$transaction(async (tx) => {
-      // 1) Talep durumlarını güncelle
-      for (const rs of body.requestStatuses) {
-        await tx.requestStatus.update({
-          where: { id: rs.id },
-          data: {
-            name: rs.name,
-            ton: rs.ton,
-            order: rs.order,
-          },
-        });
+    // Transaction yerine doğrudan güncelleme (pgbouncer connection_limit=1 ile transaction sorunlu)
+    // 1) Talep durumlarını güncelle
+    for (const rs of body.requestStatuses) {
+      await prisma.requestStatus.update({
+        where: { id: rs.id },
+        data: {
+          name: rs.name,
+          ton: rs.ton,
+          order: rs.order,
+        },
+      });
 
-        // 2) Process status mapping'lerini güncelle
-        if (rs.processStatuses?.length) {
-          for (const pm of rs.processStatuses) {
-            await tx.processStatusMapping.upsert({
-              where: { processStatusId: pm.processStatusId },
-              update: {
-                requestStatusId: rs.id,
-                order: pm.order,
-              },
-              create: {
-                processStatusId: pm.processStatusId,
-                requestStatusId: rs.id,
-                order: pm.order,
-              },
-            });
-          }
+      // 2) Process status mapping'lerini güncelle
+      if (rs.processStatuses?.length) {
+        for (const pm of rs.processStatuses) {
+          await prisma.processStatusMapping.upsert({
+            where: { processStatusId: pm.processStatusId },
+            update: {
+              requestStatusId: rs.id,
+              order: pm.order,
+            },
+            create: {
+              processStatusId: pm.processStatusId,
+              requestStatusId: rs.id,
+              order: pm.order,
+            },
+          });
         }
       }
+    }
 
-      // 3) Boştaki process status'leri güncelle (mapped=false olanlar)
-      if (body.freeProcessStatuses?.length) {
-        for (const fps of body.freeProcessStatuses) {
-          const updateData: {
-            name?: string;
-            ton?: string;
-            order?: number;
-            requestStatusId?: string | null;
-          } = {};
-          if (fps.name) updateData.name = fps.name;
-          if (fps.ton) updateData.ton = fps.ton;
-          if (fps.order !== undefined) updateData.order = fps.order;
-          if (fps.requestStatusId === null || fps.requestStatusId === "") {
-            updateData.requestStatusId = null;
-          } else if (fps.requestStatusId) {
-            updateData.requestStatusId = fps.requestStatusId;
-          }
+    // 3) Boştaki process status'leri güncelle (mapped=false olanlar)
+    if (body.freeProcessStatuses?.length) {
+      for (const fps of body.freeProcessStatuses) {
+        const updateData: {
+          name?: string;
+          ton?: string;
+          order?: number;
+          requestStatusId?: string | null;
+        } = {};
+        if (fps.name) updateData.name = fps.name;
+        if (fps.ton) updateData.ton = fps.ton;
+        if (fps.order !== undefined) updateData.order = fps.order;
+        if (fps.requestStatusId === null || fps.requestStatusId === "") {
+          updateData.requestStatusId = null;
+        } else if (fps.requestStatusId) {
+          updateData.requestStatusId = fps.requestStatusId;
+        }
 
-          if (Object.keys(updateData).length > 0) {
-            await tx.processStatus.update({
-              where: { id: fps.id },
-              data: updateData,
-            });
-          }
+        if (Object.keys(updateData).length > 0) {
+          await prisma.processStatus.update({
+            where: { id: fps.id },
+            data: updateData,
+          });
         }
       }
-    });
+    }
 
     return NextResponse.json({
       ok: true,
