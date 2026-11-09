@@ -97,13 +97,14 @@ model ProcessStatus {
 
 model ProcessStatusMapping {
   id              String   @id @default(cuid())
-  processStatusId String   @unique
-  requestStatusId String
+  processStatusId String   @map("processstatusid") @unique
+  requestStatusId String   @map("requeststatusid")
   order           Int      @default(0)
   processStatus   ProcessStatus @relation(fields: [processStatusId], references: [id], onDelete: Cascade)
   requestStatus   RequestStatus @relation(fields: [requestStatusId], references: [id])
 
   @@unique([processStatusId, requestStatusId])
+  @@map("ProcessStatusMapping")
 }
 
 model Domain {
