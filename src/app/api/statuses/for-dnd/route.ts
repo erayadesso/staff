@@ -8,8 +8,17 @@ import { getSessionUser } from "@/lib/session";
  */
 export async function GET() {
   const user = await getSessionUser();
-  if (!user || user.role !== "ADMIN") {
-    return NextResponse.json({ error: "Yetkisiz işlem." }, { status: 403 });
+  if (!user) {
+    return NextResponse.json(
+      { error: "Oturum bulunamadı. Lütfen giriş yapın.", debug: { hasSession: false } },
+      { status: 401 }
+    );
+  }
+  if (user.role !== "ADMIN") {
+    return NextResponse.json(
+      { error: `Bu sayfaya erişim yetkiniz yok. Mevcut rol: ${user.role}` },
+      { status: 403 }
+    );
   }
 
   try {

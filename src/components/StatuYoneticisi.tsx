@@ -384,7 +384,10 @@ export default function StatuYoneticisi() {
         const res = await fetch("/api/statuses/for-dnd", { credentials: "include" });
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || `HTTP ${res.status}`);
+          if (res.status === 401 || res.status === 403) {
+            throw new Error("Bu sayfayı görüntülemek için yönetici olarak giriş yapmalısınız.");
+          }
+          throw new Error(err.error || `HTTP ${res.status} — Veri yüklenemedi`);
         }
         const data = await res.json();
         if (data.ok) {
