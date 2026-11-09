@@ -40,84 +40,61 @@ export async function POST() {
       processStatuses.map((ps) => [ps.name, ps.id])
     );
 
-    // domain.ts ADAYDAN_TALEP_DURUMU map'ten eşleştirmeleri parse et
-    // Bu mapping manuel olarak domain.ts'den okunur
-    const domainMappings: [processName: string, requestName: string | null][] = [
-      // CV Süreci
-      ["CV gönderildi", "📤 Müşteriye Sunuldu"],
-      // Müşteri Süreci
-      ["Müşteri görüşmesi", "🤝 Görüşme Yapılıyor"],
-      ["Müşteri beğendi", "🤝 Görüşme Yapılıyor"],
-      ["adesso - Aday görüşmesi", "🤝 Görüşme Yapılıyor"],
-      ["İkinci müşteri görüşmesi", "🤝 Görüşme Yapılıyor"],
-      // Teklif/Sözleşme
-      ["Teklif yapıldı", "🎯 Aday Seçildi"],
-      ["Teklif kabul", "📝 İşe Giriş Süreci"],
-      ["Sözleşme süreci", "📝 İşe Giriş Süreci"],
-      // Çıkış/Kapanış
-      ["İşe başladı", "✅ Talep Karşılandı"],
-      ["Uygun CV Bulunamadı. LOST", "🔴 Karşılanamadı"],
-      ["Farklı projeye atandı", "❌ İptal Edildi"],
-      ["Müşteri talebi değişti", "❌ İptal Edildi"],
-      // Diğer
-      ["Aday süreci beklemede", "⏸️ Beklemede"],
-      ["İşe giriş evrakları hazırlanıyor", "📝 İşe Giriş Süreci"],
-      ["Evraklar teslim edildi", "📝 İşe Giriş Süreci"],
-      ["Başlangıca hazır", "📝 İşe Giriş Süreci"],
-    ];
+    // RequestStatus ID lookup name'den
+    const reqIdByName = new Map<string, string>();
+    for (const rs of requestStatuses) reqIdByName.set(rs.name, rs.id);
 
-    // Mevcut DB isimleriyle eşleştir
-    const inserts = [];
-    const skipped: string[] = [];
+    // DB-driven eşleştirmeleri oluştur
+    const mappings: { psId: string; rsId: string }[] = [];
 
-    for (const [processName, requestName] of domainMappings) {
-      // null olanları atla (talep durumu değişmez)
-      if (!requestName) {
-        skipped.push(`${processName} → (null, atlandı)`);
-        continue;
-      }
-
+    for (const [processName, requestName] of [
+      // CV → Teklif
+      ["Müşteriye İletildi", "Müşteri Teklif Değerlendirmesinde"],
+      // Görüşme → Görüşme
+      ["Görüşme Planlandı", "Görüşme Aşamasında"],
+      ["Görüşme Tamamlandı", "Görüşme Aşamasında"],
+      // Teklif/Seçim
+      ["Dış Kaynak Hizmet Teklifi İletildi", "Seçim ve Başlangıç Planlaması"],
+      ["Aday Seçildi", "Seçim ve Başlangıç Planlaması"],
+      // İşe Giriş
+      ["Başlangıç Tarihi Netleştiriliyor", "İşe Giriş Sürecinde"],
+      ["İşe Giriş Evrakları Hazırlanıyor", "İşe Giriş Sürecinde"],
+      ["Evraklar Teslim Edildi", "İşe Giriş Sürecinde"],
+      ["Başlangıca Hazır", "İşe Giriş Sürecinde"],
+      // Kapanış
+      ["İşe Başladı", "Talep Karşılandı"],
+      ["İç Değerlendirmede Uygun Bulunmadı", "Karşılanamadan Kapatıldı"],
+      ["Müşteri Tarafından Uygun Bulunmadı", "İptal Edildi"],
+      ["Aday Süreçten Çekildi", "İptal Edildi"],
+      ["Aday Süreci Beklemede", "Beklemeye Alındı"],
+    ] as [string, string][]) {
       const psId = psNameToId.get(processName);
-      const rsId = reqNameToId.get(requestName);
+      const rsId = reqIdByName.get(requestName);
 
-      if (!psId) {
-        skipped.push(`${processName} → ${requestName} (ProcessStatus bulunamadı)`);
-        continue;
+      if (psId && rsId) {
+        mappings.push({ psId, rsId });
       }
-      if (!rsId) {
-        skipped.push(`${processName} → ${requestName} (RequestStatus bulunamadı)`);
-        continue;
-      }
-
-      // Zaten var mı kontrol et
-      const exists = await prisma.processStatusMapping.findFirst({
-        where: { processStatusId: psId, requestStatusId: rsId },
-      });
-      if (exists) continue;
-
-      inserts.push({ psId, rsId });
     }
 
     // Bulk insert
-    if (inserts.length > 0) {
-      // Prisma ile tek seferde insert
-      for (const ins of inserts) {
+    let inserted = 0;
+    for (const { psId, rsId } of mappings) {
+      const exists = await prisma.processStatusMapping.findFirst({
+        where: { processStatusId: psId, requestStatusId: rsId },
+      });
+      if (!exists) {
         await prisma.processStatusMapping.create({
-          data: {
-            processStatusId: ins.psId,
-            requestStatusId: ins.rsId,
-            order: 0,
-          },
+          data: { processStatusId: psId, requestStatusId: rsId, order: 0 },
         });
+        inserted++;
       }
     }
 
     return NextResponse.json({
       ok: true,
-      message: `Sync tamamlandı: ${inserts.length} yeni mapping eklendi, ${skipped.length} atlandı.`,
-      insertedCount: inserts.length,
-      skippedCount: skipped.length,
-      skipped,
+      message: `Sync tamamlandı: ${inserted} yeni mapping eklendi.`,
+      insertedCount: inserted,
+      totalMappings: inserted + existingMappings.length,
     });
   } catch (error) {
     console.error("Sync error:", error);
