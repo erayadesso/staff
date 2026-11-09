@@ -110,15 +110,19 @@ export default async function DashboardPage() {
       hedef: hedefToplam,
       iseBaslayan: iseBaslayanAday,
     };
-  }).filter((f) => f.toplamTalep > 0 && f.doluluk > 0).sort((a, b) => b.doluluk - a.doluluk);
+  }).filter((f) => f.toplamTalep > 0).sort((a, b) => b.toplamTalep - a.toplamTalep);
 
   const firmaTalepBar = firmaAnaliz.map((f) => ({ name: f.firma.slice(0, 15), value: f.toplamTalep }));
 
-  const fillRateBar = firmaAnaliz.map((f) => ({
-    firma: f.firma,
-    doluluk: f.doluluk,
-    renk: f.doluluk >= 80 ? "#10b981" : f.doluluk >= 50 ? "#3b82f6" : "#f59e0b",
-  }));
+  // Firma Bazında Başarı Oranı grafiği: sadece doluluk > 0, başarıya göre azalan sıralı
+  const fillRateBar = firmaAnaliz
+    .filter((f) => f.doluluk > 0)
+    .sort((a, b) => b.doluluk - a.doluluk)
+    .map((f) => ({
+      firma: f.firma,
+      doluluk: f.doluluk,
+      renk: f.doluluk >= 80 ? "#10b981" : f.doluluk >= 50 ? "#3b82f6" : "#f59e0b",
+    }));
 
   // Trend hesaplama — hafta bazlı, soldan sağa: eski → yeni
   function hesaplaTrend(gunSayisi: number) {
