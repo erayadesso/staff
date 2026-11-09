@@ -59,7 +59,6 @@ export async function POST(request: NextRequest) {
                 order: pm.order,
               },
               create: {
-                id: crypto.randomUUID(),
                 processStatusId: pm.processStatusId,
                 requestStatusId: rs.id,
                 order: pm.order,
@@ -102,9 +101,11 @@ export async function POST(request: NextRequest) {
       message: `${body.requestStatuses.length} talep durumu kaydedildi.`,
     });
   } catch (error) {
-    console.error("Bulk save error:", error);
+    const msg = error instanceof Error ? error.message : "Bilinmeyen hata";
+    const code = (error as any)?.code ?? "UNKNOWN";
+    console.error("❌ Bulk save error:", { msg, code, stack: (error as Error).stack });
     return NextResponse.json(
-      { error: "Kaydetme sırasında hata oluştu." },
+      { error: "Kaydetme sırasında hata oluştu.", details: msg, errorCode: code },
       { status: 500 }
     );
   }
