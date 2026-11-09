@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
  * Drag-and-drop için statü verilerini getirir
  * GET /api/statuses/for-dnd
  * 
- * Raw SQL kullanır — Prisma relation sorunlarını önler.
+ * Raw SQL — Prisma relation sorunlarını bypass eder.
  */
 export async function GET() {
   const user = await getSessionUser();
@@ -29,9 +29,9 @@ export async function GET() {
       SELECT id, name, "order", ton FROM "RequestStatus" ORDER BY "order" ASC
     `;
 
-    // 2) Mapping'ler
+    // 2) Mapping'ler — kolon adları küçük harf
     const mappings: any[] = await prisma.$queryRaw`
-      SELECT id, "processStatusId", "requestStatusId", "order" 
+      SELECT id, "processstatusid", "requeststatusid", "order" 
       FROM "ProcessStatusMapping" 
       ORDER BY "order" ASC
     `;
