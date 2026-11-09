@@ -5,8 +5,6 @@ import { prisma } from "@/lib/prisma";
 /**
  * Drag-and-drop için statü verilerini getirir
  * GET /api/statuses/for-dnd
- * 
- * Raw SQL — Prisma relation sorunlarını bypass eder.
  */
 export async function GET() {
   const user = await getSessionUser();
@@ -24,22 +22,43 @@ export async function GET() {
   }
 
   try {
+    const { prisma } = await import("@/lib/prisma");
+
     // 1) Talep durumları
     const requestStatuses: any[] = await prisma.$queryRaw`
       SELECT id, name, "order", ton FROM "RequestStatus" ORDER BY "order" ASC
     `;
 
-    // 2) Mapping'ler — kolon adları küçük harf
-    const mappings: any[] = await prisma.$queryRaw`
+    // 2) Yeni mapping tablosu
+    const newMappings: any[] = await prisma.$queryRaw`
       SELECT id, "processstatusid", "requeststatusid", "order" 
       FROM "ProcessStatusMapping" 
       ORDER BY "order" ASC
     `;
 
-    // 3) Mapping'deki process status ID'leri
-    const mappedIds = mappings.map((m: any) => m.processstatusid);
+    // 3) Eski mapping: ProcessStatus.request_status_id
+    const oldMappedStatuses: any[] = await prisma.$queryRaw`
+      SELECT id, name, "order", ton, request_status_id 
+      FROM "ProcessStatus" 
+      WHERE request_status_id IS NOT NULL
+    `;
 
-    // 4) Mapping'deki process status'ler
+    // Eski mapping'lerden mapping oluştur
+    const oldMappings: any[] = oldMappedStatuses.map((ps) => ({
+      id: `old-${ps.id}`,
+      processstatusid: ps.id,
+      requeststatusid: ps.requeststatusid || ps.request_status_id,
+      order: 0,
+      source: "old" as const,
+    }));
+
+    // Tüm mapping'leri birleştir
+    const allMappings = [...oldMappings, ...newMappings];
+
+    // Mapping'deki tüm process status ID'leri
+    const mappedIds = allMappings.map((m: any) => m.processstatusid);
+
+    // Tüm mapped process status'ler (lookup)
     let mappedProcessStatuses: any[] = [];
     if (mappedIds.length > 0) {
       const placeholders = mappedIds.map((_: any, i: number) => `$${i + 2}`).join(",");
@@ -49,7 +68,7 @@ export async function GET() {
       );
     }
 
-    // 5) Free (eşleşmemiş) process status'ler
+    // Free (eşleşmemiş) process status'ler
     let freeProcessStatuses: any[] = [];
     if (mappedIds.length > 0) {
       const placeholders = mappedIds.map((_: any, i: number) => `$${i + 2}`).join(",");
@@ -63,14 +82,14 @@ export async function GET() {
       `;
     }
 
-    // Map oluştur (lookup)
+    // Lookup map
     const processStatusMap = new Map<string, any>();
-    for (const ps of freeProcessStatuses) processStatusMap.set(ps.id, ps);
     for (const ps of mappedProcessStatuses) processStatusMap.set(ps.id, ps);
+    for (const ps of freeProcessStatuses) processStatusMap.set(ps.id, ps);
 
     // Mapping'leri requestStatus'e göre grupla
     const mappingByRequestStatus = new Map<string, any[]>();
-    for (const m of mappings) {
+    for (const m of allMappings) {
       const key = m.requeststatusid;
       if (!mappingByRequestStatus.has(key)) mappingByRequestStatus.set(key, []);
       mappingByRequestStatus.get(key)!.push(m);
@@ -94,6 +113,7 @@ export async function GET() {
         ton: rs.ton,
         order: rs.order,
         processStatuses,
+        mappingSource: rsMappings.some((m: any) => m.source === "old") ? "system" : "manual",
       };
     });
 
@@ -110,9 +130,11 @@ export async function GET() {
       freeProcessStatuses: formattedFreeProcessStatuses,
       meta: {
         requestStatusCount: formattedRequestStatuses.length,
-        mappingCount: mappings.length,
+        mappingCount: allMappings.length,
+        newMappingCount: newMappings.length,
+        oldMappingCount: oldMappings.length,
         freeCount: formattedFreeProcessStatuses.length,
-        mappedProcessCount: mappedProcessStatuses.length,
+        mappedProcessCount: mappedIds.length,
       },
     });
   } catch (error) {
