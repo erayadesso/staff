@@ -364,6 +364,7 @@ export default function StatuYoneticisi() {
   const [freeProcessStatuses, setFreeProcessStatuses] = useState<ProcessStatusItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
 
@@ -379,15 +380,24 @@ export default function StatuYoneticisi() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch("/api/statuses/for-dnd");
+        // credentials: include — Next.js JWT cookie'sini gönderir
+        const res = await fetch("/api/statuses/for-dnd", { credentials: "include" });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${res.status}`);
+        }
         const data = await res.json();
         if (data.ok) {
           setRequestStatuses(data.requestStatuses || []);
           setFreeProcessStatuses(data.freeProcessStatuses || []);
+          setError(null);
+        } else {
+          throw new Error(data.error || "Veri yüklenemedi");
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("Fetch error:", err);
-        toast.error("Veriler yüklenirken hata oluştu.");
+        setError(err.message || "Veriler yüklenirken hata oluştu.");
+        toast.error(err.message || "Veriler yüklenirken hata oluştu.");
       } finally {
         setLoading(false);
       }
@@ -540,6 +550,7 @@ export default function StatuYoneticisi() {
       const res = await fetch("/api/statuses/bulk-save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -563,6 +574,30 @@ export default function StatuYoneticisi() {
         <div className="flex flex-col items-center gap-3">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-zinc-300 border-t-indigo-600 dark:border-zinc-600 dark:border-t-indigo-400" />
           <p className="text-sm text-zinc-500">Veriler yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 dark:border-red-900/50 dark:bg-red-950/20">
+        <div className="flex items-start gap-3">
+          <span className="text-2xl">⚠️</span>
+          <div>
+            <h3 className="font-semibold text-red-800 dark:text-red-300">
+              Veri yüklenemedi
+            </h3>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-3 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-500"
+            >
+              Sayfayı Yenile
+            </button>
+          </div>
         </div>
       </div>
     );

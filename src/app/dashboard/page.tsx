@@ -85,8 +85,17 @@ export default async function DashboardPage() {
       const rStatusTon = statununTonu(r.status);
       return rStatusTon === "kapali" && !isBasariKapatildi(r.candidates, r.quantity);
     }).length;
+    // Hedef: Taleplerin quantity alanları toplamı
     const hedefToplam = ft.reduce((a, r) => a + (parseInt(r.quantity || "0") || 0), 0);
-    const iseBaslayanAday = ft.reduce((a, r) => a + r.candidates.filter((ca) => ca.processStatus?.ton === "karsilandi").length, 0);
+    // İşe başlayan: "karsilandi" tonlu veya "İşe başladı" isimli aday
+    const iseBaslayanAday = ft.reduce((a, r) => a + r.candidates.filter((ca) => {
+      // Önce ton bazlı kontrol
+      if (ca.processStatus?.ton === "karsilandi") return true;
+      // Alternatif: aday durumu ismi "İşe başladı" ise
+      if (ca.processStatus?.name?.toLowerCase().includes("işe başladı")) return true;
+      return false;
+    }).length, 0);
+    // Başarı oranı: işe başlayan / hedef (yüzde)
     const doluluk = hedefToplam > 0 ? Math.round((iseBaslayanAday / hedefToplam) * 100) : 0;
     const gecikmisCount = ft.filter((r) => !isBasariKapatildi(r.candidates, r.quantity) && deadlineGecti(r.status, r.deadline)).length;
     return {
