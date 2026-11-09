@@ -22,25 +22,22 @@ export async function GET() {
   }
 
   try {
-    // Talep durumlarını ve eşleşen process status'leri getir
+    // 1) Talep durumlarını getir
     const requestStatuses = await prisma.requestStatus.findMany({
       orderBy: { order: "asc" },
-      include: {
-        processMappings: {
-          include: {
-            processStatus: true,
-          },
-          orderBy: { order: "asc" },
-        },
-      },
     });
 
-    // ProcessStatusMapping ile eşleşen process status ID'leri
+    // 2) Her talep durumu için mapping'leri getir (basit query)
+    const allMappings = await prisma.processStatusMapping.findMany({
+      orderBy: { order: "asc" },
+    });
+
+    // 3) Tüm mapped process status ID'leri
     const mappedProcessStatusIds = new Set(
-      requestStatuses.flatMap((rs) => rs.processMappings.map((m) => m.processStatusId))
+      allMappings.map((m) => m.processStatusId)
     );
 
-    // Eşleşmemiş (boşta) process status'leri getir
+    // 4) Eşleşmemiş (boşta) process status'leri getir
     const freeProcessStatuses = await prisma.processStatus.findMany({
       where: {
         id: { notIn: Array.from(mappedProcessStatusIds) },
@@ -48,19 +45,57 @@ export async function GET() {
       orderBy: { order: "asc" },
     });
 
-    // Formatla
-    const formattedRequestStatuses = requestStatuses.map((rs) => ({
-      id: rs.id,
-      name: rs.name,
-      ton: rs.ton,
-      order: rs.order,
-      processStatuses: rs.processMappings.map((m) => ({
-        id: m.processStatus.id,
-        name: m.processStatus.name,
-        ton: m.processStatus.ton,
-        order: m.order,
-      })),
-    }));
+    // 5) Mapping'lerden process status'leri grupla
+    const mappingByRequestStatus = new Map<string, typeof allMappings>();
+    for (const m of allMappings) {
+      if (!mappingByRequestStatus.has(m.requestStatusId)) {
+        mappingByRequestStatus.set(m.requestStatusId, []);
+      }
+      mappingByRequestStatus.get(m.requestStatusId)!.push(m);
+    }
+
+    // 6) Process status name→obje map (lookup için)
+    const processStatusMap = new Map<string, { id: string; name: string; ton: string | null; order: number }>();
+    for (const ps of freeProcessStatuses) {
+      processStatusMap.set(ps.id, {
+        id: ps.id,
+        name: ps.name,
+        ton: ps.ton,
+        order: ps.order,
+      });
+    }
+    // Mapped olanları da ekle (ancak free olarak değil, ilişkili olduğu request'te)
+    const allProcessStatus = await prisma.processStatus.findMany({
+      where: { id: { in: Array.from(mappedProcessStatusIds) } },
+      select: { id: true, name: true, ton: true, order: true },
+    });
+    for (const ps of allProcessStatus) {
+      processStatusMap.set(ps.id, {
+        id: ps.id,
+        name: ps.name,
+        ton: ps.ton,
+        order: ps.order,
+      });
+    }
+
+    // 7) Formatla
+    const formattedRequestStatuses = requestStatuses.map((rs) => {
+      const mappings = mappingByRequestStatus.get(rs.id) || [];
+      const processStatuses = mappings.map((m) => {
+        const ps = processStatusMap.get(m.processStatusId);
+        return ps
+          ? { id: ps.id, name: ps.name, ton: ps.ton, order: m.order }
+          : { id: m.processStatusId, name: "?", ton: null, order: m.order };
+      });
+
+      return {
+        id: rs.id,
+        name: rs.name,
+        ton: rs.ton,
+        order: rs.order,
+        processStatuses: processStatuses.sort((a, b) => a.order - b.order),
+      };
+    });
 
     const formattedFreeProcessStatuses = freeProcessStatuses.map((ps) => ({
       id: ps.id,
@@ -76,8 +111,11 @@ export async function GET() {
     });
   } catch (error) {
     console.error("Fetch error:", error);
+    const msg = error instanceof Error ? error.message : "Bilinmeyen hata";
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error("Stack:", stack);
     return NextResponse.json(
-      { error: "Veriler yüklenirken hata oluştu." },
+      { error: "Veriler yüklenirken hata oluştu.", details: msg },
       { status: 500 }
     );
   }
