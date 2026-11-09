@@ -384,8 +384,11 @@ export default function StatuYoneticisi() {
         const res = await fetch("/api/statuses/for-dnd", { credentials: "include" });
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}));
+          const baseMsg = errData.error || `HTTP ${res.status}`;
+          const detailMsg = errData.details ? ` (${errData.details})` : "";
+          const codeMsg = errData.errorCode ? ` [${errData.errorCode}]` : "";
           // API'den gelen detaylı mesajı kullan
-          const msg = errData.error || `HTTP ${res.status}`;
+          const msg = baseMsg + detailMsg + codeMsg;
           if (res.status === 401) {
             throw new Error(`Oturum bulunamadı. ${errData.debug ? "Debug: " + JSON.stringify(errData.debug) : "Lütfen çıkış yapıp tekrar giriş yapın."}`);
           }
