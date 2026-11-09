@@ -2,10 +2,13 @@ import { prisma } from "./prisma";
 
 export async function getRequests(showCancelled: boolean = false) {
   // Yeni sistem: sadece "aktif" ton aktif kabul edilir
+  // Backward compatibility: eski tonlar da aktif kabul edilir
+  const aktifTonlar = ["aktif", "yeni", "ic", "dis", "gorsme", "secim", "kabul"];
+
   return prisma.request.findMany({
     where: showCancelled ? undefined : {
       status: {
-        ton: "aktif",
+        ton: { in: aktifTonlar },
       },
     },
     include: {

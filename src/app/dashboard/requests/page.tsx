@@ -15,10 +15,13 @@ export const dynamic = "force-dynamic";
 
 async function getFilteredRequests(showCancelled: boolean) {
   // Yeni sistem: sadece "aktif" ton aktif kabul edilir
+  // Backward compatibility: eski tonlar da aktif kabul edilir
+  const aktifTonlar = ["aktif", "yeni", "ic", "dis", "gorsme", "secim", "kabul"];
+
   return prisma.request.findMany({
     where: showCancelled ? undefined : {
       status: {
-        ton: "aktif",
+        ton: { in: aktifTonlar },
       },
     },
     include: {
