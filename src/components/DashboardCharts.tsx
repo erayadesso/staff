@@ -15,28 +15,24 @@ const PERIOD_LABELS: Record<Period, string> = {
 };
 
 export default function DashboardCharts({
-  durumDagilimi,
   firmaTalepBar,
   fillRateBar,
   trendData30,
   trendData90,
   trendData180,
   trendDataTumu,
-  pipelineData,
   domainTrendKeys,
   domainTrend30,
   domainTrend90,
   domainTrend180,
   domainTrendTumu,
 }: {
-  durumDagilimi: { name: string; value: number }[];
   firmaTalepBar: { name: string; value: number }[];
   fillRateBar: { firma: string; doluluk: number; renk: string }[];
   trendData30: { hafta: string; olusturan: number; kapatilan: number }[];
   trendData90: { hafta: string; olusturan: number; kapatilan: number }[];
   trendData180: { hafta: string; olusturan: number; kapatilan: number }[];
   trendDataTumu: { hafta: string; olusturan: number; kapatilan: number }[];
-  pipelineData: { name: string; value: number }[];
   domainTrendKeys: { id: string; label: string }[];
   domainTrend30: { id: string; label: string; data: { hafta: string; olusturan: number; kapatilan: number }[] }[];
   domainTrend90: { id: string; label: string; data: { hafta: string; olusturan: number; kapatilan: number }[] }[];
@@ -59,22 +55,6 @@ export default function DashboardCharts({
     <div className="space-y-6">
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">Aday Süreç Dağılımı</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={durumDagilimi} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={2} dataKey="value">
-                  {durumDagilimi.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">Firma Talep Sayısı</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -88,11 +68,9 @@ export default function DashboardCharts({
             </ResponsiveContainer>
           </div>
         </div>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">Firma Fill Rate Karşılaştırma</h3>
+          <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">Firma Bazında Başarı Oranı</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={fillRateBar} layout="vertical" margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
@@ -105,21 +83,6 @@ export default function DashboardCharts({
                     <Cell key={`cell-${index}`} fill={entry.renk} />
                   ))}
                 </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <h3 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">Aday Pipeline Funnel</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={pipelineData} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-zinc-200 dark:stroke-zinc-700" />
-                <XAxis dataKey="name" className="text-xs" tick={{ fontSize: 8 }} interval={0} angle={-30} textAnchor="end" height={80} />
-                <YAxis className="text-xs" tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

@@ -9,48 +9,6 @@ import LoadingMessage from "@/components/LoadingMessage";
 
 export const dynamic = "force-dynamic";
 
-/** Aday sürecini Çatı Statüye eşleştir */
-function adayCatiStatuEşleştir(aday: { processStatus?: { name?: string | null } | null }) {
-  const adayDurumu = aday.processStatus?.name;
-  if (!adayDurumu) return "aktif"; // Varsayılan
-
-  const ADAYDAN_CATI_STATU: Record<string, string> = {
-    // Tüm aday durumlarını çatı statü'e eşleştir
-    "TechHead CV Taraması": "aktif",
-    "CV hazırlanıyor": "aktif",
-    "CV müşteriye gönderilmek üzere hazırlandı": "aktif",
-    "CV gönderildi": "aktif",
-    "Müşteri görüşmesi": "aktif",
-    "Müşteri beğendi": "aktif",
-    "İkinci müşteri görüşmesi": "aktif",
-    "Teklif yapıldı": "aktif",
-    "Teklif kabul": "aktif",
-    "Sözleşme süreci": "aktif",
-    "Müşteri beğendi - Teklif Talep Etti": "aktif",
-    "Müşteri görüşmesi tamamlandı - Sonuç bekleniyor": "aktif",
-    "CV kalitesi yetersiz - yeni cv bekleniyor": "aktif",
-    "Müşteri bekleniyor": "aktif",
-    "müşteri satın alma formu bekleniyor": "aktif",
-    "İşe giriş evrakları hazırlanıyor": "aktif",
-    "evraklar teslim edildi": "aktif",
-    "başlangıca hazır": "aktif",
-    "Aday belirlendi": "aktif",
-    "İç değerlendirmede uygun bulunmadı": "aktif",
-    "Müşteri tarafından uygun bulunmadı": "aktif",
-    "Onaylandı": "aktif",
-
-    "İşe başladı": "talep_karsilandi",
-    "Uygun cv bulunamadı. lost": "karsilanamadi",
-    "farklı projeye atandı": "iptal",
-    "Müşteri talebi değişti": "iptal",
-    "Aday süreçten çekildi": "aktif",
-
-    "Aday süreci beklemede": "beklemede",
-  };
-
-  return ADAYDAN_CATI_STATU[adayDurumu.toLowerCase()] ?? "aktif";
-}
-
 export default async function DashboardPage() {
   const user = await getSessionUser();
   if (!user) return null;
@@ -144,23 +102,6 @@ export default async function DashboardPage() {
       iseBaslayan: iseBaslayanAday,
     };
   }).filter((f) => f.toplamTalep > 0).sort((a, b) => b.toplamTalep - a.toplamTalep);
-
-  // --- Grafik Verileri: 5 Çatı Statü ---
-  // Adayları Çatı Statüye eşleştirerek grupla
-  const cavusStatolari = ["aktif", "beklemede", "talep_karsilandi", "karsilanamadi", "iptal"];
-  const pipelineData = cavusStatolari.reduce((acc, catiStatu) => {
-    const adaySayisi = requests.flatMap((r) => r.candidates).filter(
-      (aday) => adayCatiStatuEşleştir(aday) === catiStatu
-    ).length;
-    acc[catiStatu] = adaySayisi;
-    return acc;
-  }, {} as Record<string, number>);
-
-  // Dashboard chart'ına uygun formatta sırala
-  const pipelineDataSirali = cavusStatolari.map((catiStatu) => ({
-    name: catiStatu.replace(/_/g, " "), // _ -> space
-    value: pipelineData[catiStatu] || 0,
-  })).filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
 
   const firmaTalepBar = firmaAnaliz.map((f) => ({ name: f.firma.slice(0, 15), value: f.toplamTalep }));
 
@@ -377,16 +318,14 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* 2. Talep Dağılımı + 3. Firma Analizi + 4. Trend + 5. Pipeline */}
+        {/* 2. Firma Analizi + 3. Trend */}
         <DashboardCharts
-          durumDagilimi={pipelineDataSirali}
           firmaTalepBar={firmaTalepBar}
           fillRateBar={fillRateBar}
           trendData30={trendData30}
           trendData90={trendData90}
           trendData180={trendData180}
           trendDataTumu={trendDataTumu}
-          pipelineData={pipelineDataSirali}
           domainTrendKeys={domainTrendKeys}
           domainTrend30={domainTrend30}
           domainTrend90={domainTrend90}
