@@ -110,7 +110,7 @@ export default async function DashboardPage() {
       hedef: hedefToplam,
       iseBaslayan: iseBaslayanAday,
     };
-  }).filter((f) => f.toplamTalep > 0).sort((a, b) => b.toplamTalep - a.toplamTalep);
+  }).filter((f) => f.toplamTalep > 0 && f.doluluk > 0).sort((a, b) => b.doluluk - a.doluluk);
 
   const firmaTalepBar = firmaAnaliz.map((f) => ({ name: f.firma.slice(0, 15), value: f.toplamTalep }));
 
