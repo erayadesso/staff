@@ -383,11 +383,16 @@ export default function StatuYoneticisi() {
         // credentials: include — Next.js JWT cookie'sini gönderir
         const res = await fetch("/api/statuses/for-dnd", { credentials: "include" });
         if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          if (res.status === 401 || res.status === 403) {
-            throw new Error("Bu sayfayı görüntülemek için yönetici olarak giriş yapmalısınız.");
+          const errData = await res.json().catch(() => ({}));
+          // API'den gelen detaylı mesajı kullan
+          const msg = errData.error || `HTTP ${res.status}`;
+          if (res.status === 401) {
+            throw new Error(`Oturum bulunamadı. ${errData.debug ? "Debug: " + JSON.stringify(errData.debug) : "Lütfen çıkış yapıp tekrar giriş yapın."}`);
           }
-          throw new Error(err.error || `HTTP ${res.status} — Veri yüklenemedi`);
+          if (res.status === 403) {
+            throw new Error(`Yönetici yetkiniz yok. ${msg}`);
+          }
+          throw new Error(msg);
         }
         const data = await res.json();
         if (data.ok) {
