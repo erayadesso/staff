@@ -23,7 +23,7 @@ export async function talepDurumunuGuncelle(requestId: string): Promise<void> {
     .filter((t) => t.ton === "yeni")
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0] ?? null;
 
-  const yeniId = talepDurumuBelirle(
+  const yeniId = await talepDurumuBelirle(
     adaylari.map((a) => a.processStatus),
     talepDurumlari,
     varsayilan

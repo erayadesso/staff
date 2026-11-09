@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
-import StatuYonetimi from "@/components/StatuYonetimi";
+import StatuYoneticisi from "@/components/StatuYoneticisi";
 
 export const dynamic = "force-dynamic";
 
@@ -17,35 +17,5 @@ export default async function StatulerPage() {
     );
   }
 
-  const [requestStatuses, processStatuses] = await Promise.all([
-    prisma.requestStatus.findMany({ orderBy: { order: "asc" } }),
-    prisma.processStatus.findMany({ orderBy: { order: "asc" } }),
-  ]);
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">
-          Statü Yönetimi
-        </h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-          Talep ve aday süreç statülerini ekleyebilir, düzenleyebilir veya
-          silebilirsiniz.
-        </p>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <StatuYonetimi
-          tip="talep"
-          baslik="Talep Durumları"
-          statuler={requestStatuses}
-        />
-        <StatuYonetimi
-          tip="surec"
-          baslik="Aday Süreç Durumları"
-          statuler={processStatuses}
-        />
-      </div>
-    </div>
-  );
+  return <StatuYoneticisi />;
 }

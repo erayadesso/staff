@@ -239,7 +239,8 @@ export const ADAYDAN_TALEP_DURUMU = new Map<string, string | null>([
 
 /**
  * Aday süreci durumuna göre Talep durumunu otomatik belirler.
- * Doğrudan Aday → Talep Durumu eşleştirme kullanır.
+ * Database-driven mapping kullanır (ProcessStatusMapping tablosu).
+ * Eski sistem: ADAYDAN_TALEP_DURUMU map (fallback).
  * Sadece "aktif" tonlu adaylar ilerlemeye sayılır.
  *
  * @param adayDurumlari - Talepteki adayların süreç durumları
@@ -247,13 +248,14 @@ export const ADAYDAN_TALEP_DURUMU = new Map<string, string | null>([
  * @param fallback - Hiç eşleşme yoksa kullanılacak fallback talep durumu
  * @returns Eşleşen talep durumu ID'si veya fallback
  */
-export function talepDurumuBelirle(
+export async function talepDurumuBelirle(
   adayDurumlari: (StatuNesne | null | undefined)[],
   talepDurumlari: StatuNesne[],
   fallback: StatuNesne | null = null
-): string | null {
+): Promise<string | null> {
+  // 1) Adayların en ileri aktif durumunu bul
   let enIleriSira = -1;
-  let secilenTalepDurumuAdi: string | null = null;
+  let enIleriAdayAdi: string | null = null;
 
   for (const aday of adayDurumlari) {
     if (!aday) continue;
@@ -263,40 +265,73 @@ export function talepDurumuBelirle(
     if (ton !== "aktif") continue;
 
     const adayAdi = aday.name || "";
-    // Case-insensitive eşleşme (harf büyük/küçüklük farkını yok say)
-    const hedefTalepDurumu = findMapping(adayAdi);
-    if (hedefTalepDurumu === null) continue; // null → talep durumu değişmez
-
-    // Sıra bilgisini adaydan al
     const sira = typeof aday.order === "number" ? aday.order : -1;
     if (sira > enIleriSira) {
       enIleriSira = sira;
-      secilenTalepDurumuAdi = hedefTalepDurumu ?? null;
+      enIleriAdayAdi = adayAdi;
     }
   }
 
-  // Eşleşen Talep Durumunu bul ve ID'sini döndür
-  if (secilenTalepDurumuAdi) {
-    const talep = talepDurumlari.find((t) => t.name === secilenTalepDurumuAdi);
-    if (talep?.id) return talep.id;
+  // 2) Eşleşen tale p durumunu bul (database + fallback)
+  if (enIleriAdayAdi) {
+    const secilenTalepDurumu = await findRequestStatusByProcessStatus(
+      enIleriAdayAdi,
+      talepDurumlari
+    );
+    if (secilenTalepDurumu) return secilenTalepDurumu;
   }
 
   return fallback?.id ?? null;
 }
 
 /**
- * Case-insensitive ADAYDAN_TALEP_DURUMU araması
+ * ProcessStatus adından RequestStatus bulur.
+ * Önce database'den (ProcessStatusMapping), sonra hardcoded map'ten bakar.
  */
-function findMapping(adayAdi: string): string | null | undefined {
-  // Önce direkt eşleşme (hızlı)
-  const direct = ADAYDAN_TALEP_DURUMU.get(adayAdi);
-  if (direct !== undefined) return direct;
-  // Yoksa case-insensitive eşleşme
-  const lower = adayAdi.toLowerCase();
-  for (const [key, value] of ADAYDAN_TALEP_DURUMU) {
-    if (key.toLowerCase() === lower) return value;
+async function findRequestStatusByProcessStatus(
+  processStatusName: string,
+  talepDurumlari: StatuNesne[]
+): Promise<string | null> {
+  try {
+    const { prisma } = await import("@/lib/prisma");
+
+    // Database'den mapping'i kontrol et
+    const mapping = await prisma.processStatusMapping.findFirst({
+      where: {
+        processStatus: {
+          name: processStatusName,
+        },
+      },
+      include: {
+        requestStatus: true,
+      },
+    });
+
+    if (mapping?.requestStatus?.id) {
+      return mapping.requestStatus.id;
+    }
+
+    // Database'de yoksa, hardcoded map'ten dene (backward compat)
+    const direct = ADAYDAN_TALEP_DURUMU.get(processStatusName);
+    if (direct !== undefined) {
+      const talep = talepDurumlari.find((t) => t.name === direct);
+      if (talep?.id) return talep.id;
+    }
+
+    // Case-insensitive eşleşme
+    const lower = processStatusName.toLowerCase();
+    for (const [key, value] of ADAYDAN_TALEP_DURUMU) {
+      if (key.toLowerCase() === lower && value !== undefined) {
+        const talep = talepDurumlari.find((t) => t.name === value);
+        if (talep?.id) return talep.id;
+        break;
+      }
+    }
+  } catch (err) {
+    console.error("findRequestStatusByProcessStatus error:", err);
   }
-  return undefined;
+
+  return null;
 }
 
 /**

@@ -78,19 +78,32 @@ model Candidate {
 }
 
 model RequestStatus {
-  id     String @id @default(cuid())
-  name   String @unique
-  order  Int    @default(0)
-  ton    String @default("varsayilan")
-  requests Request[]
+  id               String         @id @default(cuid())
+  name             String         @unique
+  order            Int            @default(0)
+  ton              String         @default("varsayilan")
+  requests         Request[]
+  processMappings  ProcessStatusMapping[]
 }
 
 model ProcessStatus {
-  id     String @id @default(cuid())
-  name   String @unique
-  order  Int    @default(0)
-  ton    String @default("varsayilan")
-  candidates Candidate[]
+  id               String         @id @default(cuid())
+  name             String         @unique
+  order            Int            @default(0)
+  ton              String         @default("varsayilan")
+  candidates       Candidate[]
+  mapping          ProcessStatusMapping?
+}
+
+model ProcessStatusMapping {
+  id              String   @id @default(cuid())
+  processStatusId String   @unique
+  requestStatusId String
+  order           Int      @default(0)
+  processStatus   ProcessStatus @relation(fields: [processStatusId], references: [id], onDelete: Cascade)
+  requestStatus   RequestStatus @relation(fields: [requestStatusId], references: [id])
+
+  @@unique([processStatusId, requestStatusId])
 }
 
 model Domain {
